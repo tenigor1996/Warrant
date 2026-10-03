@@ -28,8 +28,10 @@ if status="$(curl -fsS -m 2 "$AGENT_URL/status" 2>/dev/null)"; then
   esac
 fi
 
-if curl -fsS -m 2 "$SIM_URL/health" >/dev/null 2>&1; then
-  curl -fsS -m 30 -X POST "$SIM_URL/demo/reset" >/dev/null
+# If the service answers /health but the reset call fails (e.g. it is shutting
+# down right now), fall through to the offline rebuild.
+if curl -fsS -m 2 "$SIM_URL/health" >/dev/null 2>&1 \
+   && curl -fsS -m 30 -X POST "$SIM_URL/demo/reset" >/dev/null 2>&1; then
   say "checkout service reset (running at $SIM_URL)"
 else
   WARRANT_STATE_DIR="$STATE" "$PY" -c "
@@ -41,7 +43,7 @@ workspace.build(state / 'checkout-service')
 for name in ('app.log', 'metrics.jsonl', 'health.json'):
     (state / name).unlink(missing_ok=True)
 "
-  say "checkout service not running; rebuilt repo and cleared logs/metrics in $STATE"
+  say "checkout service not running or not responding; rebuilt repo and cleared logs/metrics in $STATE"
 fi
 
 rm -f "$STATE/events.jsonl" "$STATE/diagnosis.json" "$STATE/report.json"
