@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "scope_description": "checkout configuration only (checkout_service/config.py, via apply_remediation)",
+  "writable_paths": ["checkout_service/config.py"],
+  "settings": {
+    "PAYMENT_TIMEOUT": {"type": "number", "min": 1.0, "max": 30.0},
+    "PAYMENT_RETRIES": {"type": "integer", "min": 0, "max": 2},
+    "PAYMENT_RETRY_BACKOFF": {"type": "number", "min": 0.05, "max": 2.0}
+  },
+  "denied_actions": {
+    "revert_commit_and_push": "pushing to main"
+  }
+}

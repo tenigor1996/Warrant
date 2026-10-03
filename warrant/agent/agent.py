@@ -11,18 +11,21 @@ and nothing about the expected cause in the prompt.
 Stops when the model calls submit_diagnosis, or after MAX_STEPS model turns
 (result status "inconclusive").
 
-Read-only by design: remediation, policy enforcement, verification and the
-final report are later stages.
+investigate() is read-only. remediate() is the follow-on stage for the direct
+backend: the model proposes a fix through the policy-gated remediation tools,
+sees any denial, replans, and finishes by verifying recovery.
+
+This module is the direct-vLLM runtime. With the OpenClaw backend the same
+tools are reached over MCP instead (mcp_server.py) and OpenClaw runs the loop.
 """
 
 import json
-import time
 from datetime import datetime, timezone
 
-from warrant.agent import config
+from warrant.agent import config, remediation, toolbox
 from warrant.agent.events import EventStream
 from warrant.agent.llm_client import LLMClient, LLMError
-from warrant.agent.tools import TOOL_SCHEMAS, run_tool
+from warrant.agent.tools import TOOL_SCHEMAS
 
 MAX_TOOL_RESULT_CHARS = 12000
 MAX_NUDGES = 2
@@ -43,6 +46,22 @@ must explain the observed symptoms and when they started.
 - This is an investigation only. You cannot change anything; do not attempt a fix.
 - Be efficient. When the evidence is sufficient, call submit_diagnosis. \
 Otherwise keep investigating.
+"""
+
+REMEDIATION_PROMPT = """\
+You are an on-call site reliability engineer. You have diagnosed a production \
+incident in the checkout service and must now resolve it. No human is available.
+
+You have the read-only investigation tools plus remediation and verification tools.
+
+Rules:
+- Choose the remediation that addresses the diagnosed root cause.
+- Every remediation is checked by a policy gate. If a result says DENIED, it was not \
+applied: read the reason, do not repeat the same action, and choose a different approach \
+that fits the permitted scope.
+- After a remediation is applied, call run_tests, then call verify_recovery.
+- If verify_recovery reports the service has not recovered, use what it reports to correct \
+the remediation and verify again.
 """
 
 SUBMIT_DIAGNOSIS = {"type": "function", "function": {
@@ -68,29 +87,14 @@ SUBMIT_DIAGNOSIS = {"type": "function", "function": {
     },
 }}
 
-TOOL_TITLES = {
-    "get_service_health": "Checking service health",
-    "get_metrics_history": "Reviewing metrics history",
-    "search_logs": "Searching application logs",
-    "inspect_stack_trace": "Inspecting stack trace",
-    "get_recent_commits": "Inspecting git history",
-    "get_git_diff": "Reading commit diff",
-    "read_config": "Reading configuration",
-    "read_source_file": "Reading source code",
-    "list_repository_files": "Listing repository files",
-}
-
-
 def investigate(event: dict, llm=None, events: EventStream = None, max_steps: int = config.MAX_STEPS) -> dict:
     llm = llm or LLMClient()
     events = events or EventStream(config.EVENTS_FILE)
     incident_id = event.get("incident_id") or datetime.now(timezone.utc).strftime("INC-%Y%m%d-%H%M%S")
-    tools = TOOL_SCHEMAS + [SUBMIT_DIAGNOSIS]
     tools_used = []
 
-    events.emit("detect", "status", "Incident received",
-                f"{event.get('service', 'checkout')} {event.get('status', '')}: "
-                f"failure rate {_pct(event.get('failure_rate'))}, p95 {event.get('latency_p95_ms')} ms")
+    emit_detection(event, events)
+    events.emit("investigate", "status", "Investigation started", f"{incident_id}: read-only evidence gathering")
 
     messages = [
         {"role": "system", "content": SYSTEM_PROMPT},
@@ -98,52 +102,104 @@ def investigate(event: dict, llm=None, events: EventStream = None, max_steps: in
                                     + "\n\nInvestigate and find the root cause."},
     ]
 
+    def on_call(call, step):
+        if call["name"] == "submit_diagnosis":
+            problem = validate_diagnosis(call["arguments"])
+            if problem is None:
+                return None, build_diagnosis(incident_id, call["arguments"], step, tools_used, events)
+            return {"error": problem}, None
+        if call["name"] in remediation.TOOLS:  # investigation is read-only
+            return {"error": f"{call['name']} is not available during investigation"}, None
+        tools_used.append(call["name"])
+        return toolbox.execute(call["name"], call["arguments"], events), None
+
+    diagnosis, steps, error = _run_loop(
+        llm, messages, TOOL_SCHEMAS + [SUBMIT_DIAGNOSIS], events, max_steps, "investigate", on_call,
+        "Continue: call an investigation tool, or call submit_diagnosis if the evidence is sufficient.")
+    if diagnosis is not None:
+        return diagnosis
+    if error is not None:
+        return _inconclusive(incident_id, steps, tools_used, f"LLM error: {error}")
+    events.emit("diagnose", "status", "Investigation inconclusive", f"no diagnosis after {max_steps} steps")
+    return _inconclusive(incident_id, max_steps, tools_used, "step limit reached")
+
+
+def remediate(diagnosis: dict, llm=None, events: EventStream = None, outcome=None,
+              max_steps: int = config.MAX_STEPS) -> dict:
+    """Direct backend: propose a fix through the policy gate, then verify. Returns a remediation summary."""
+    llm = llm or LLMClient()
+    events = events or EventStream(config.EVENTS_FILE)
+    events.emit("plan", "status", "Remediation started", "policy-gated remediation, then tests and health check")
+
+    summary = {k: diagnosis.get(k) for k in ("root_cause", "confidence", "evidence", "offending_commit",
+                                             "recommended_next_step")}
+    messages = [
+        {"role": "system", "content": REMEDIATION_PROMPT},
+        {"role": "user", "content": "Diagnosis:\n" + json.dumps(summary, indent=2)
+                                    + "\n\nResolve the incident and verify recovery."},
+    ]
+    tools_used = []
+
+    def on_call(call, step):
+        tools_used.append(call["name"])
+        result = toolbox.execute(call["name"], call["arguments"], events, outcome)
+        done = call["name"] == "verify_recovery" and result.get("recovered") is True
+        return result, (result if done else None)
+
+    verification, steps, error = _run_loop(
+        llm, messages, TOOL_SCHEMAS + remediation.TOOL_SCHEMAS, events, max_steps, "act", on_call,
+        "Continue: apply a remediation, or call run_tests and verify_recovery if one has been applied.")
+    if verification is not None:
+        return {"status": "resolved", "final_status": "RECOVERED", "verification": verification,
+                "steps": steps, "tools_used": tools_used}
+    reason = f"LLM error: {error}" if error is not None else "step limit reached without verified recovery"
+    events.emit("verify", "status", "Incident not resolved", reason[:400])
+    return {"status": "unresolved", "final_status": "NOT_RECOVERED", "verification": None,
+            "reason": reason, "steps": steps, "tools_used": tools_used}
+
+
+def _run_loop(llm, messages, tool_schemas, events, max_steps, phase, on_call, nudge):
+    """
+    Model turns until on_call returns a final value. on_call(call, step) -> (tool result, final or None).
+    Returns (final or None, steps taken, LLMError or None).
+    """
     nudges = 0
     for step in range(1, max_steps + 1):
         try:
-            reply = llm.chat(messages, tools)
+            reply = llm.chat(messages, tool_schemas)
         except LLMError as exc:
-            events.emit("investigate", "status", "Local model unavailable", str(exc)[:400])
-            return _inconclusive(incident_id, step - 1, tools_used, f"LLM error: {exc}")
+            events.emit(phase, "status", "Local model unavailable", str(exc)[:400])
+            return None, step - 1, exc
 
         calls = reply["tool_calls"]
         messages.append(_assistant_message(reply))
         if reply["content"]:
-            events.emit("investigate", "reasoning", "Agent reasoning", reply["content"][:600])
+            # The model's visible message only; llm_client strips <think> blocks.
+            events.emit(phase, "reasoning", "Agent note", reply["content"][:300])
 
         if not calls:
             nudges += 1
             if nudges > MAX_NUDGES:
                 break
-            messages.append({"role": "user", "content":
-                             "Continue: call an investigation tool, or call submit_diagnosis "
-                             "if the evidence is sufficient."})
+            messages.append({"role": "user", "content": nudge})
             continue
 
         for call in calls:
-            if call["name"] == "submit_diagnosis":
-                problem = _validate_diagnosis(call["arguments"])
-                if problem is None:
-                    return _finish(incident_id, call["arguments"], step, tools_used, events)
-                result = {"error": problem}
-            else:
-                args_text = ", ".join(f"{k}={v!r}" for k, v in call["arguments"].items())
-                events.emit("investigate", "tool_call", TOOL_TITLES.get(call["name"], call["name"]),
-                            f"{call['name']}({args_text})")
-                started = time.monotonic()
-                result = run_tool(call["name"], call["arguments"])
-                duration = int((time.monotonic() - started) * 1000)
-                tools_used.append(call["name"])
-                events.emit("investigate", "tool_result", _summarize(call["name"], call["arguments"], result),
-                            json.dumps(result)[:400], duration_ms=duration)
+            result, final = on_call(call, step)
+            if final is not None:
+                return final, step, None
             messages.append({"role": "tool", "tool_call_id": call["id"], "name": call["name"],
                              "content": json.dumps(result)[:MAX_TOOL_RESULT_CHARS]})
-
-    events.emit("diagnose", "status", "Investigation inconclusive", f"no diagnosis after {max_steps} steps")
-    return _inconclusive(incident_id, max_steps, tools_used, "step limit reached")
+    return None, max_steps, None
 
 
-def _finish(incident_id, args, steps, tools_used, events):
+def emit_detection(event: dict, events: EventStream) -> None:
+    events.emit("detect", "status", "Incident received",
+                f"{event.get('service', 'checkout')} {event.get('status', '')}: "
+                f"failure rate {_pct(event.get('failure_rate'))}, p95 {event.get('latency_p95_ms')} ms")
+
+
+def build_diagnosis(incident_id, args, steps, tools_used, events):
     diagnosis = {
         "incident_id": incident_id,
         "status": "diagnosed",
@@ -166,7 +222,7 @@ def _inconclusive(incident_id, steps, tools_used, reason):
             "reason": reason, "steps": steps, "tools_used": tools_used}
 
 
-def _validate_diagnosis(args):
+def validate_diagnosis(args):
     if not str(args.get("root_cause", "")).strip():
         return "root_cause is required"
     if not args.get("evidence"):
@@ -185,30 +241,6 @@ def _assistant_message(reply):
             for c in reply["tool_calls"]
         ]
     return message
-
-
-def _summarize(name, args, result):
-    """Short factual title for the timeline. Describes what came back, not what it means."""
-    if "error" in result:
-        return f"{name} failed: {str(result['error'])[:80]}"
-    if name == "get_service_health":
-        return (f"Service {result.get('status')}: failure rate {_pct(result.get('failure_rate'))}, "
-                f"p95 {result.get('latency_p95_ms')} ms")
-    if name == "get_metrics_history":
-        return f"{result.get('count')} metric snapshots"
-    if name == "search_logs":
-        return f"{result.get('count')} log entries matching '{args.get('query')}'"
-    if name == "inspect_stack_trace":
-        return f"Stack trace: {str(result.get('exception'))[:80]}"
-    if name == "get_recent_commits":
-        return f"{len(result.get('commits', []))} recent commits"
-    if name == "get_git_diff":
-        return f"Diff of commit {str(args.get('sha'))[:7]}"
-    if name == "read_config":
-        return f"Read {result.get('path')}"
-    if name == "read_source_file":
-        return f"Read {args.get('path')}"
-    return f"{name} returned"
 
 
 def _pct(value):
