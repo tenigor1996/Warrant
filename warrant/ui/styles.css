@@ -772,3 +772,156 @@ body {
   .ev-row,
   .act-row { grid-template-columns: minmax(0, 1fr); gap: 6px; }
 }
+
+/* ---------- data source indicator ---------- */
+
+.topbar-right {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.data-source {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+}
+
+.src-mode {
+  padding: 5px 14px;
+  border-radius: 6px;
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.src-feeds {
+  display: flex;
+  gap: 6px;
+}
+
+.src-chip {
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+/* live = reading state/, fixture = fell back, none = neither answered */
+.src-live {
+  background: #0f3b1f;
+  color: var(--allowed);
+  box-shadow: inset 0 0 0 1px rgba(74, 222, 128, 0.35);
+}
+
+.src-fixture {
+  background: #3b2a0f;
+  color: #fbbf24;
+  box-shadow: inset 0 0 0 1px rgba(251, 191, 36, 0.45);
+}
+
+.src-none {
+  background: #232833;
+  color: var(--muted);
+}
+
+/* A verdict the contract does not define: shown, not silently dropped. */
+.verdict-unknown {
+  background: #232833;
+  color: var(--muted);
+}
+
+.rep-error {
+  padding: 16px 18px;
+  border-radius: 8px;
+  background: #2a0f0f;
+  border: 1px solid var(--denied);
+  color: #ffc9c9;
+  font-size: 16px;
+}
+
+@media (max-width: 900px) {
+  .topbar { flex-wrap: wrap; gap: 14px; }
+  .topbar-right { width: 100%; justify-content: space-between; }
+}
+
+/* ---------- recovery outcomes (RECOVERED / NOT_RECOVERED / UNVERIFIED) ---------- */
+
+.rec-banner {
+  padding: 12px 18px;
+  border-radius: 8px;
+  font-size: 26px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+/* A failed recovery is a real outcome, reported as loudly as a denial. */
+.rec-failed .rec-banner {
+  background: #2a0f0f;
+  color: var(--denied);
+  border: 3px solid var(--denied);
+  box-shadow: 0 0 0 1px rgba(255, 56, 56, 0.35),
+    0 10px 36px rgba(255, 56, 56, 0.18);
+}
+
+.rec-failed .rec-after {
+  color: var(--denied);
+}
+
+.rec-failed .rec-before {
+  color: #ff7a7a;
+  text-decoration: none;
+}
+
+.rec-unverified .rec-banner {
+  background: #3b2a0f;
+  color: #fbbf24;
+  border: 2px solid rgba(251, 191, 36, 0.55);
+}
+
+.rec-unverified .rec-before {
+  color: #d9c08a;
+  text-decoration: none;
+}
+
+.rec-after-unknown {
+  color: #fbbf24 !important;
+  font-variant-numeric: normal;
+}
+
+/* ---------- final_status color coding ---------- */
+
+.outcome-recovered {
+  color: var(--allowed);
+}
+
+.outcome-not_recovered {
+  color: var(--denied);
+}
+
+.outcome-unverified {
+  color: #fbbf24;
+}
+
+.rep-status.outcome-recovered {
+  background: #0f3b1f;
+  color: var(--allowed);
+}
+
+.rep-status.outcome-not_recovered {
+  background: #3b1414;
+  color: var(--denied);
+}
+
+.rep-status.outcome-unverified {
+  background: #3b2a0f;
+  color: #fbbf24;
+}

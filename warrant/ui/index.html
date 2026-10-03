@@ -10,7 +10,19 @@
 <body>
   <header class="topbar">
     <div class="wordmark">WARRANT</div>
-    <button id="trigger-btn" type="button">Trigger Demo Incident</button>
+    <div class="topbar-right">
+      <!-- Provenance of the data on screen: LIVE = read from state/,
+           FIXTURE = a feed fell back to fixtures/ this tick. -->
+      <div id="data-source" class="data-source">
+        <span id="src-mode" class="src-mode src-none">NO DATA</span>
+        <span class="src-feeds">
+          <span id="src-health" class="src-chip src-none">health</span>
+          <span id="src-events" class="src-chip src-none">events</span>
+          <span id="src-report" class="src-chip src-none">report</span>
+        </span>
+      </div>
+      <button id="trigger-btn" type="button">Trigger Demo Incident</button>
+    </div>
   </header>
 
   <main class="grid">
