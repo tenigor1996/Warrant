@@ -77,6 +77,18 @@ def test_direct_backend_reports_unresolved(repo, service, stream, outcome):
     result = backends.DirectBackend(llm=llm).run(EVENT, stream, outcome)
     assert result["status"] == "diagnosed"
     assert result["remediation"]["status"] == "unresolved" and "LLM error" in result["remediation"]["reason"]
+    # Verification ran and failed: NOT_RECOVERED, with the failed verification kept.
+    assert result["remediation"]["final_status"] == "NOT_RECOVERED"
+    assert result["remediation"]["verification"]["recovered"] is False
+
+
+def test_direct_backend_without_verification_is_unverified(repo, service, stream, outcome):
+    llm = ScriptedLLM(call("submit_diagnosis", **GOOD_DIAGNOSIS), call("revert_commit_and_push", sha="abc1234"),
+                      LLMError("gone"))
+    result = backends.DirectBackend(llm=llm).run(EVENT, stream, outcome)
+    assert result["remediation"]["status"] == "unresolved"
+    assert result["remediation"]["final_status"] == "UNVERIFIED"   # never verified is not "not recovered"
+    assert result["remediation"]["verification"] is None
     assert read_events(stream.path)[-1]["title"] == "Incident not resolved"
 
 
@@ -175,6 +187,37 @@ def test_openclaw_full_run_through_mcp_tools(openclaw_on_path, repo, service, st
         assert expected in kinds
 
 
+def test_policy_blocked_run_is_unverified_everywhere(openclaw_on_path, repo, service, monkeypatch):
+    """Only a denied action, no verification: /status, /outcome and report.json must agree."""
+    pytest.importorskip("mcp")
+    fake = FakeOpenClaw(script=[("submit_diagnosis", GOOD_DIAGNOSIS), ("revert_commit_and_push", {"sha": "abc1234"})])
+    monkeypatch.setattr(server, "_state", {**server._state, "state": "investigating", "incident_id": "INC-TEST"})
+    server._run(dict(EVENT), backends.OpenClawBackend(runner=fake))
+
+    status = server._snapshot()
+    assert status["state"] == "diagnosed"   # not "resolved"
+    assert status["remediation"]["final_status"] == "UNVERIFIED" and status["remediation"]["status"] == "unresolved"
+    recorded = json.loads(config.OUTCOME_FILE.read_text())
+    assert recorded["verification"] is None and recorded["action_executed"] is None
+    report = json.loads(config.REPORT_FILE.read_text())
+    assert report["final_status"] == "UNVERIFIED" and report["action_executed"] is None
+    assert [a["verdict"] for a in report["actions_proposed"]] == ["DENIED"]
+    assert {report["final_status"], status["remediation"]["final_status"]} <= {"RECOVERED", "NOT_RECOVERED",
+                                                                              "UNVERIFIED"}
+
+
+def test_failed_verification_is_not_recovered_everywhere(openclaw_on_path, repo, service, monkeypatch):
+    pytest.importorskip("mcp")
+    service.metrics = dict(DEGRADED)
+    fake = FakeOpenClaw(script=[("submit_diagnosis", GOOD_DIAGNOSIS), ("verify_recovery", {})])
+    monkeypatch.setattr(server, "_state", {**server._state, "state": "investigating", "incident_id": "INC-TEST"})
+    server._run(dict(EVENT), backends.OpenClawBackend(runner=fake))
+
+    assert server._snapshot()["remediation"]["final_status"] == "NOT_RECOVERED"
+    assert json.loads(config.OUTCOME_FILE.read_text())["verification"]["final_status"] == "NOT_RECOVERED"
+    assert json.loads(config.REPORT_FILE.read_text())["final_status"] == "NOT_RECOVERED"
+
+
 # ---- :8082 API ---------------------------------------------------------------
 
 class SlowBackend:
@@ -229,6 +272,9 @@ def test_api_runs_asynchronously_and_keeps_its_endpoints(repo, service, monkeypa
         assert status["state"] == "resolved" and status["remediation"]["status"] == "resolved"
         assert _http("GET", base + "/diagnosis")[1]["root_cause"] == "x"
         assert _http("GET", base + "/outcome")[1]["verification"]["recovered"] is True
+        report = json.loads(config.REPORT_FILE.read_text())  # written before the state turned final
+        assert report["final_status"] == "RECOVERED" and report["incident_id"] == "INC-TEST"
+        assert read_events(config.EVENTS_FILE)[-1]["title"] == "Incident report generated"
         assert _http("POST", base + "/investigate", EVENT)[0] == 202  # accepts the next incident
     finally:
         backend.release.set()

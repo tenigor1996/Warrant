@@ -22,6 +22,7 @@ def state(tmp_path, monkeypatch):
     monkeypatch.setattr(config, "EVENTS_FILE", tmp_path / "events.jsonl")
     monkeypatch.setattr(config, "DIAGNOSIS_FILE", tmp_path / "diagnosis.json")
     monkeypatch.setattr(config, "OUTCOME_FILE", tmp_path / "outcome.json")
+    monkeypatch.setattr(config, "REPORT_FILE", tmp_path / "report.json")
     monkeypatch.setattr(config, "VERIFY_TIMEOUT_SECONDS", 0)
     return tmp_path
 
@@ -52,10 +53,11 @@ def outcome(state):
 
 @pytest.fixture
 def service(monkeypatch):
-    """Stand-in for the checkout service's /metrics. Set service.metrics to change what it reports."""
+    """Stand-in for the checkout service: /metrics returns service.metrics, /metrics/history service.history."""
     class Handler(BaseHTTPRequestHandler):
         def do_GET(self):
-            body = json.dumps(server.metrics).encode()
+            history = self.path.startswith("/metrics/history")
+            body = json.dumps({"snapshots": server.history} if history else server.metrics).encode()
             self.send_response(200)
             self.send_header("Content-Length", str(len(body)))
             self.end_headers()
@@ -66,6 +68,7 @@ def service(monkeypatch):
 
     server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
     server.metrics = dict(HEALTHY)
+    server.history = []
     threading.Thread(target=server.serve_forever, daemon=True).start()
     monkeypatch.setattr(config, "CHECKOUT_URL", f"http://127.0.0.1:{server.server_port}")
     yield server

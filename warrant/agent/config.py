@@ -55,5 +55,6 @@ RECOVERED_P95_MS = float(os.environ.get("WARRANT_RECOVERED_P95_MS", "1000"))
 EVENTS_FILE = STATE_DIR / "events.jsonl"
 DIAGNOSIS_FILE = STATE_DIR / "diagnosis.json"
 OUTCOME_FILE = STATE_DIR / "outcome.json"
+REPORT_FILE = STATE_DIR / "report.json"
 
 PORT = int(os.environ.get("AGENT_PORT", "8082"))

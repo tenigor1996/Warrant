@@ -71,11 +71,20 @@ No chain-of-thought is recorded. With OpenClaw the only model-authored text on
 the timeline is the root cause it submitted. The direct backend also records the
 model's visible message (after `<think>` blocks are stripped) as "Agent note".
 
+## Report (`state/report.json`, contracts/report.json)
+
+Written by `report.py` when the :8082 server finishes an incident, after the
+last verification, for both backends. It is not an MCP tool: the model cannot
+produce it early. Every field comes from `state/outcome.json`, the timeline or
+the service's `/metrics/history`; a field with no source is `null` and is named
+in the "Incident report generated" timeline entry. `final_status` is
+`RECOVERED`, `NOT_RECOVERED` (verification failed) or `UNVERIFIED` (no
+verification ran). `report_sha256` is computed by
+`warrant.report.report_renderer.compute_sha256`. The file is replaced
+atomically.
+
 ## Not done here
 
-- `report.json` (contracts/report.json) is not written. `state/outcome.json`
-  holds the pieces a report needs: diagnosis, `actions_proposed`,
-  `action_executed`, `tests`, `verification`.
 - Whether the model tries the denied action first is up to the model. Nothing
   scripts the order.
 - OpenShell enforcement is a template; see `warrant/policy/README.md`.

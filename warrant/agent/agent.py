@@ -25,6 +25,7 @@ from datetime import datetime, timezone
 from warrant.agent import config, remediation, toolbox
 from warrant.agent.events import EventStream
 from warrant.agent.llm_client import LLMClient, LLMError
+from warrant.agent.outcome import final_status
 from warrant.agent.tools import TOOL_SCHEMAS
 
 MAX_TOOL_RESULT_CHARS = 12000
@@ -139,10 +140,13 @@ def remediate(diagnosis: dict, llm=None, events: EventStream = None, outcome=Non
                                     + "\n\nResolve the incident and verify recovery."},
     ]
     tools_used = []
+    last_verification = []  # the most recent verify_recovery that produced a verdict
 
     def on_call(call, step):
         tools_used.append(call["name"])
         result = toolbox.execute(call["name"], call["arguments"], events, outcome)
+        if call["name"] == "verify_recovery" and "error" not in result:
+            last_verification[:] = [result]
         done = call["name"] == "verify_recovery" and result.get("recovered") is True
         return result, (result if done else None)
 
@@ -150,11 +154,12 @@ def remediate(diagnosis: dict, llm=None, events: EventStream = None, outcome=Non
         llm, messages, TOOL_SCHEMAS + remediation.TOOL_SCHEMAS, events, max_steps, "act", on_call,
         "Continue: apply a remediation, or call run_tests and verify_recovery if one has been applied.")
     if verification is not None:
-        return {"status": "resolved", "final_status": "RECOVERED", "verification": verification,
+        return {"status": "resolved", "final_status": final_status(verification), "verification": verification,
                 "steps": steps, "tools_used": tools_used}
     reason = f"LLM error: {error}" if error is not None else "step limit reached without verified recovery"
     events.emit("verify", "status", "Incident not resolved", reason[:400])
-    return {"status": "unresolved", "final_status": "NOT_RECOVERED", "verification": None,
+    verification = last_verification[0] if last_verification else None
+    return {"status": "unresolved", "final_status": final_status(verification), "verification": verification,
             "reason": reason, "steps": steps, "tools_used": tools_used}
 
 
