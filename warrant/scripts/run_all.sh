@@ -20,6 +20,8 @@ set -uo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$ROOT"
+# Machine-specific settings (not committed): warrant/scripts/demo.env
+if [ -f "$ROOT/warrant/scripts/demo.env" ]; then set -a; . "$ROOT/warrant/scripts/demo.env"; set +a; fi
 PY="${PYTHON:-$ROOT/.venv/bin/python}"
 [ -x "$PY" ] || PY="python3"
 STATE="${WARRANT_STATE_DIR:-$ROOT/warrant/state}"
@@ -44,7 +46,7 @@ port_busy() {
 }
 
 stop_all() {
-  trap - INT TERM EXIT
+  trap - INT TERM HUP EXIT
   echo
   say "stopping..."
   local i
@@ -56,7 +58,7 @@ stop_all() {
   wait 2>/dev/null
   exit "${1:-0}"
 }
-trap 'stop_all 0' INT TERM
+trap 'stop_all 0' INT TERM HUP  # HUP: the terminal window was closed
 trap 'stop_all $?' EXIT
 
 start() {  # start <name> <command string>

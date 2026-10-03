@@ -59,8 +59,19 @@ One-time setup:
     python3 -m venv .venv
     .venv/bin/pip install -r warrant/sim/requirements.txt -r warrant/agent/requirements.txt
 
-Demo:
+Demo on the GB10 — desktop icon (once per machine, from the repo):
 
+    warrant/scripts/install_icon.sh              # puts a "Warrant Demo" icon on the desktop
+
+Double-click it: it sets up `.venv` on first run, resets, starts everything and
+opens the dashboard. Press "Trigger Demo Incident" on the dashboard to start the
+incident. Close the terminal window to stop. Machine-specific settings (e.g.
+`WARRANT_OPENCLAW_CMD`) go in `warrant/scripts/demo.env` — copy
+`demo.env.example`; the file is not committed and is also read by `run_all.sh`.
+
+Demo from a terminal:
+
+    warrant/scripts/start_demo.sh                # same as the icon
     warrant/scripts/reset_demo.sh                # clean, healthy state (run before every rehearsal)
     warrant/scripts/run_all.sh                   # starts sim, agent, watcher, dashboard; Ctrl+C stops all
     curl -X POST localhost:8081/demo/trigger     # start the incident; the watcher takes it from there
@@ -106,8 +117,8 @@ for this path.)
 |---|---|
 | sim: checkout service, deterministic retry-storm incident, evidence, reset | done |
 | watcher: 2s polling, 2-reading trigger, one event per incident, re-arm | done |
-| agent: read-only investigation loop + event stream | done, **not yet run on a real model** |
+| agent: OpenClaw/direct backends, investigation, policy-gated remediation, verification, sealed report.json | done, **not yet run end to end on the real model** |
+| policy: app-level rules + OpenShell template | done (OpenShell enforcement is a template) |
+| dashboard + report renderer | in progress |
 | contracts + fixtures | done |
-| scripts: reset_demo.sh, run_all.sh, proof.sh | done |
-| OpenShell policy, remediation, verification, report | not started |
-| dashboard | not started |
+| scripts: start icon, start_demo.sh, reset_demo.sh, run_all.sh, proof.sh | done |
