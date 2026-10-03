@@ -1,0 +1,2 @@
+# No dependencies. report_renderer.py is pure stdlib
+# (argparse, hashlib, html, json, os, sys).
