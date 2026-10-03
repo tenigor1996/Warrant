@@ -57,7 +57,7 @@ Each lane keeps its own `requirements.txt`. There is no root requirements file.
 One-time setup:
 
     python3 -m venv .venv
-    .venv/bin/pip install -r warrant/sim/requirements.txt
+    .venv/bin/pip install -r warrant/sim/requirements.txt -r warrant/agent/requirements.txt
 
 Demo:
 
@@ -66,9 +66,17 @@ Demo:
     curl -X POST localhost:8081/demo/trigger     # start the incident; the watcher takes it from there
     warrant/scripts/proof.sh                     # "is this real?" — git history, diff, live tests, metrics, logs
 
-Logs: `warrant/state/logs/`. Model endpoint: `LLM_BASE_URL` (default
+Logs: `warrant/state/logs/`.
+
+Agent backend: `WARRANT_AGENT_BACKEND` — `openclaw` (default; the model is
+reached through OpenClaw/NemoClaw) or `direct` (the agent calls a vLLM endpoint
+itself; use this to run without OpenClaw):
+
+    WARRANT_AGENT_BACKEND=direct warrant/scripts/run_all.sh
+
+Direct backend model endpoint: `LLM_BASE_URL` (default
 `http://localhost:8000/v1`), model name: `LLM_MODEL` (default: first model the
-server lists).
+server lists). See `warrant/agent/README.md` for all agent settings.
 
 Individual processes, if needed:
 
@@ -78,7 +86,7 @@ Individual processes, if needed:
 
 Tests:
 
-    .venv/bin/python -m pytest warrant/sim/tests warrant/watcher/tests warrant/agent/tests -q
+    .venv/bin/python -m pytest warrant/sim/tests warrant/watcher/tests warrant/agent/tests warrant/policy/tests -q
 
 ## Where the incident lives
 

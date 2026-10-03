@@ -46,8 +46,8 @@ for name in ('app.log', 'metrics.jsonl', 'health.json'):
   say "checkout service not running or not responding; rebuilt repo and cleared logs/metrics in $STATE"
 fi
 
-rm -f "$STATE/events.jsonl" "$STATE/diagnosis.json" "$STATE/report.json"
-say "cleared agent timeline, diagnosis and report"
+rm -f "$STATE/events.jsonl" "$STATE/diagnosis.json" "$STATE/outcome.json" "$STATE/report.json"
+say "cleared agent timeline, diagnosis, outcome and report"
 
 # Verify.
 WARRANT_STATE_DIR="$STATE" "$PY" -c "
@@ -62,5 +62,13 @@ sys.exit(1 if workspace.is_incident(ws) else 0)
 
 if health="$(curl -fsS -m 2 "$SIM_URL/health" 2>/dev/null)"; then
   say "health: $health"
+fi
+# The agent keeps its last result in memory; only a restart or the next incident clears it.
+if status="$(curl -fsS -m 2 "$AGENT_URL/status" 2>/dev/null)"; then
+  last="$(echo "$status" | "$PY" -c 'import json,sys; print(json.load(sys.stdin).get("state", ""))' 2>/dev/null)"
+  case "$last" in
+    idle|investigating|"") ;;
+    *) say "note: agent /status still shows the last incident ($last) until it is restarted or a new incident starts." ;;
+  esac
 fi
 say "ready — healthy. (A running watcher re-arms by itself after ~6s of healthy readings.)"

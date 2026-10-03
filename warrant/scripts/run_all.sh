@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 # run_all.sh — start every Warrant process in order. Ctrl+C stops them all.
 #
-#   0. check the local model (vLLM, managed by NemoClaw — not started here)
+#   0. check the local model — direct backend only (vLLM at LLM_BASE_URL). With the
+#      OpenClaw backend (default once warrant/agent/backends.py exists) the model is
+#      reached through NemoClaw and the agent checks it itself at startup.
 #   1. checkout service  :8081   python -m warrant.sim.app
 #   2. agent             :8082   python -m warrant.agent.server
 #   3. watcher                   python -m warrant.watcher.watcher
@@ -9,7 +11,8 @@
 #
 # Logs go to warrant/state/logs/<name>.log. Run reset_demo.sh first for a clean demo.
 #
-# Overrides (env): PYTHON, LLM_BASE_URL, LLM_MODEL, AGENT_CMD, DASHBOARD_CMD
+# Overrides (env): PYTHON, WARRANT_AGENT_BACKEND (openclaw | direct), LLM_BASE_URL,
+#                  LLM_MODEL, AGENT_CMD, DASHBOARD_CMD
 #
 # Usage (from anywhere):  warrant/scripts/run_all.sh
 
@@ -83,11 +86,21 @@ for port in 8081 8082 8083; do
   fi
 done
 
-# 0. local model
-if models="$(curl -fsS -m 3 "$LLM_BASE_URL/models" 2>/dev/null)"; then
-  say "local model up at $LLM_BASE_URL: $(echo "$models" | "$PY" -c 'import json,sys; print(", ".join(m["id"] for m in json.load(sys.stdin).get("data", [])))')"
+# 0. agent backend and local model
+if [ -f "$ROOT/warrant/agent/backends.py" ]; then
+  BACKEND="${WARRANT_AGENT_BACKEND:-openclaw}"
 else
-  say "WARNING: no model at $LLM_BASE_URL — investigations will end 'inconclusive' until it is up."
+  BACKEND="direct"  # agent without backend support always talks to LLM_BASE_URL
+fi
+say "agent backend: $BACKEND"
+if [ "$BACKEND" = "direct" ]; then
+  if models="$(curl -fsS -m 3 "$LLM_BASE_URL/models" 2>/dev/null)"; then
+    say "local model up at $LLM_BASE_URL: $(echo "$models" | "$PY" -c 'import json,sys; print(", ".join(m["id"] for m in json.load(sys.stdin).get("data", [])))')"
+  else
+    say "WARNING: no model at $LLM_BASE_URL — investigations will end 'inconclusive' until it is up."
+  fi
+else
+  say "model is reached through OpenClaw/NemoClaw; the agent checks it at startup"
 fi
 
 # 1-4
@@ -96,6 +109,8 @@ wait_http sim http://localhost:8081/health 30
 
 start agent "$AGENT_CMD"
 wait_http agent http://localhost:8082/status 30
+sleep 1
+grep -h "WARNING" "$LOGS/agent.log" 2>/dev/null | sed 's/^/[RUN] agent says: /'
 
 start watcher "$WATCHER_CMD"
 sleep 1
