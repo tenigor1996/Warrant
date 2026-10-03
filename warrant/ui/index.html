@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>WARRANT — Incident Engineer</title>
+  <link rel="stylesheet" href="styles.css" />
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="wordmark">WARRANT</div>
+    <button id="trigger-btn" type="button">Trigger Demo Incident</button>
+  </header>
+
+  <main class="grid">
+    <section id="panel-status" class="panel panel-wide">
+      <h2>Service Status</h2>
+      <div class="panel-body">
+        <div class="status-head">
+          <span id="status-pill" class="pill pill-unknown">UNKNOWN</span>
+          <span id="status-updated" class="status-updated">Last update —</span>
+        </div>
+        <div class="tiles">
+          <div class="tile">
+            <div class="tile-label">Failure Rate</div>
+            <div id="metric-failure" class="tile-value">—</div>
+          </div>
+          <div class="tile">
+            <div class="tile-label">P95 Latency</div>
+            <div id="metric-latency" class="tile-value">—</div>
+          </div>
+          <div class="tile">
+            <div class="tile-label">Errors / min</div>
+            <div id="metric-errors" class="tile-value">—</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="panel-timeline" class="panel">
+      <h2>Live Agent Timeline</h2>
+      <div class="panel-body placeholder">Waiting for agent activity…</div>
+    </section>
+
+    <section id="panel-policy" class="panel">
+      <h2>Policy Decisions</h2>
+      <div class="panel-body placeholder">No policy decisions yet…</div>
+    </section>
+
+    <section id="panel-rootcause" class="panel">
+      <h2>Root Cause</h2>
+      <div class="panel-body placeholder">Not yet diagnosed…</div>
+    </section>
+
+    <section id="panel-recovery" class="panel">
+      <h2>Recovery</h2>
+      <div class="panel-body placeholder">No remediation yet…</div>
+    </section>
+
+    <section id="panel-report" class="panel">
+      <h2>Incident Report</h2>
+      <div class="panel-body placeholder">Report pending…</div>
+    </section>
+  </main>
+</body>
+</html>
