@@ -1,2 +1,2 @@
-# DEL_INVIDIA
-Igor, Syed, Mridul - Hack
+# DELL_NVIDIA
+Igor, Syed, Mridhul - Hack
