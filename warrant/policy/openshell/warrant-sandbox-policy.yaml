@@ -1,0 +1,56 @@
+# OpenShell sandbox policy for the Warrant agent — TEMPLATE, NOT YET APPLIED.
+#
+# This is the OS-level enforcement layer: OpenShell (Landlock + network proxy)
+# applies it to every process in the NemoClaw sandbox, including OpenClaw and
+# the Warrant MCP server it spawns. It holds no matter what the model or the
+# Python code tries. warrant/policy/policy.py is a separate, app-level check.
+#
+# Status: written from the NemoClaw/OpenShell policy layout, not validated
+# against the OpenShell version installed on the GB10. Before relying on it:
+#   1. dump the live policy of the sandbox and compare field names with this file
+#   2. replace every <PLACEHOLDER>
+#   3. apply it and run the checks in warrant/policy/README.md
+#
+# Intent, in one line: the agent may read the checkout-service repository and
+# Warrant's code, may write exactly one file of that repository
+# (checkout_service/config.py) plus Warrant's own state files, and may talk
+# only to the checkout service and the local inference endpoint.
+
+version: 1
+
+filesystem_policy:
+  include_workdir: false
+  read_only:
+    - /usr
+    - /lib
+    - /etc
+    - <WARRANT_REPO>                                  # Warrant code, incl. the MCP server
+    - <WARRANT_STATE_DIR>/checkout-service            # the repository under investigation
+  read_write:
+    - /tmp
+    - /dev/null
+    # The single permitted remediation target.
+    - <WARRANT_STATE_DIR>/checkout-service/checkout_service/config.py
+    # Warrant's own bookkeeping (timeline, diagnosis, outcome). Not part of the service.
+    - <WARRANT_STATE_DIR>/events.jsonl
+    - <WARRANT_STATE_DIR>/diagnosis.json
+    - <WARRANT_STATE_DIR>/outcome.json
+
+landlock:
+  compatibility: best_effort
+
+process:
+  run_as_user: sandbox
+  run_as_group: sandbox
+
+network_policies:
+  checkout_service:
+    name: checkout_service
+    endpoints:
+      - host: <HOST_AS_SEEN_FROM_SANDBOX>
+        port: 8081
+    binaries:
+      - path: <PYTHON_IN_SANDBOX>
+  # Inference is already routed by NemoClaw (inference.local); keep its existing
+  # entry from the live policy rather than adding a vLLM URL here.
+  # No entry for git remotes: nothing in the sandbox can push.

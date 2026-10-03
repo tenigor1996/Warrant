@@ -1,3 +1,6 @@
-# The agent uses only the Python standard library at runtime.
-# pytest is needed to run warrant/agent/tests.
+# The direct backend, the :8082 server and the tools use only the Python standard library.
+# The MCP server (warrant/agent/mcp_server.py) needs the MCP SDK. Pinned: the FastMCP
+# code uses the 1.x API.
+mcp==1.30.0
+# pytest runs warrant/agent/tests, and run_tests() runs the checkout-service suite with it.
 pytest==9.1.1
