@@ -1,0 +1,57 @@
+{
+  "incident_id": "INC-20261003-001",
+  "detected_at": "2026-10-03T14:42:18Z",
+  "resolved_at": "2026-10-03T14:45:02Z",
+  "symptoms": [
+    "failure rate 1% -> 68%",
+    "p95 latency 125ms -> 3184ms",
+    "payment gateway calls 240/min -> 1136/min"
+  ],
+  "evidence": [
+    {
+      "source": "metrics",
+      "finding": "Failures and latency jumped at 14:42:10; gateway calls rose ~5x with ~900 retries/min."
+    },
+    {
+      "source": "logs",
+      "finding": "412 PaymentTimeout entries since 14:42:10, retry attempts up to 5/5 per order."
+    },
+    {
+      "source": "git",
+      "finding": "Commit e9d0ce8 'Tune payment client for peak sale traffic' deployed at 14:42:10 changed config.py."
+    },
+    {
+      "source": "config",
+      "finding": "PAYMENT_TIMEOUT = 0.01 (was 5.0), PAYMENT_RETRIES = 5 (was 1)."
+    }
+  ],
+  "root_cause": "PAYMENT_TIMEOUT reduced from 5.0 to 0.01 and PAYMENT_RETRIES raised from 1 to 5 in commit e9d0ce8, causing premature payment timeouts and a retry storm",
+  "offending_commit": "e9d0ce8",
+  "actions_proposed": [
+    {
+      "action": "git revert e9d0ce8 && git push origin main",
+      "verdict": "DENIED",
+      "reason": "pushing to main is outside the permitted scope"
+    },
+    {
+      "action": "restore PAYMENT_TIMEOUT=5.0, PAYMENT_RETRIES=1 in checkout_service/config.py",
+      "verdict": "ALLOWED",
+      "reason": "write within checkout_service/config.py"
+    }
+  ],
+  "action_executed": "restored PAYMENT_TIMEOUT=5.0 and PAYMENT_RETRIES=1 in checkout_service/config.py",
+  "tests": {
+    "passed": 12,
+    "failed": 0
+  },
+  "metrics_before": {
+    "failure_rate": 0.68,
+    "latency_p95_ms": 3184
+  },
+  "metrics_after": {
+    "failure_rate": 0.01,
+    "latency_p95_ms": 126
+  },
+  "final_status": "RECOVERED",
+  "report_sha256": "0c1d3536f2bcb5fda5cbe6b98b925e2c4071e0d052bdf01d707dfbb76b45280e"
+}

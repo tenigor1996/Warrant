@@ -1,0 +1,8 @@
+{
+  "timestamp": "2026-10-03T14:42:40Z",
+  "status": "degraded",
+  "failure_rate": 0.683,
+  "latency_p95_ms": 3184,
+  "requests_last_minute": 240,
+  "errors_last_minute": 164
+}

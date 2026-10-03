@@ -1,0 +1,11 @@
+{
+  "seq": 7,
+  "timestamp": "2026-10-03T14:42:55Z",
+  "phase": "detect|investigate|diagnose|plan|policy|act|verify|report",
+  "kind": "tool_call | tool_result | reasoning | policy_decision | status",
+  "title": "Inspecting git history",
+  "detail": "get_recent_commits(limit=5)",
+  "policy_verdict": "ALLOWED | DENIED | null",
+  "policy_reason": "path /app/config.py is outside write scope",
+  "duration_ms": 820
+}

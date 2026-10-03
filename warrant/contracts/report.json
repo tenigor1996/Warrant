@@ -1,0 +1,16 @@
+{
+  "incident_id": "INC-20261003-001",
+  "detected_at": "2026-10-03T14:42:18Z",
+  "resolved_at": "2026-10-03T14:45:02Z",
+  "symptoms": ["failure rate 1% -> 68%", "p95 latency 125ms -> 3400ms"],
+  "evidence": [{"source": "logs", "finding": "..."}],
+  "root_cause": "PAYMENT_TIMEOUT reduced from 5.0 to 0.01 in commit a3f9c21",
+  "offending_commit": "a3f9c21",
+  "actions_proposed": [{"action": "...", "verdict": "DENIED", "reason": "..."}],
+  "action_executed": "restored PAYMENT_TIMEOUT=5.0 in config",
+  "tests": {"passed": 12, "failed": 0},
+  "metrics_before": {"failure_rate": 0.68, "latency_p95_ms": 3400},
+  "metrics_after": {"failure_rate": 0.01, "latency_p95_ms": 125},
+  "final_status": "RECOVERED",
+  "report_sha256": "..."
+}
