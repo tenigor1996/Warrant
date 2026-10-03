@@ -30,6 +30,10 @@ fi
 
 # If the service answers /health but the reset call fails (e.g. it is shutting
 # down right now), fall through to the offline rebuild.
+WATCHER_LOG="$STATE/logs/watcher.log"
+watcher_log_start=0
+[ -f "$WATCHER_LOG" ] && watcher_log_start=$(wc -c < "$WATCHER_LOG" | tr -d ' ')
+
 if curl -fsS -m 2 "$SIM_URL/health" >/dev/null 2>&1 \
    && curl -fsS -m 30 -X POST "$SIM_URL/demo/reset" >/dev/null 2>&1; then
   say "checkout service reset (running at $SIM_URL)"
@@ -71,4 +75,20 @@ if status="$(curl -fsS -m 2 "$AGENT_URL/status" 2>/dev/null)"; then
     *) say "note: agent /status still shows the last incident ($last) until it is restarted or a new incident starts." ;;
   esac
 fi
-say "ready — healthy. (A running watcher re-arms by itself after ~6s of healthy readings.)"
+# A watcher still in "incident active" mode ignores a new trigger until it has
+# seen ~3 healthy readings. Wait for that, so the next trigger is always caught.
+if pgrep -f "warrant.watcher.watcher" >/dev/null 2>&1; then
+  say "waiting for the watcher to re-arm..."
+  armed=""
+  if [ -f "$WATCHER_LOG" ]; then
+    for _ in $(seq 1 40); do
+      new="$(tail -c +"$((watcher_log_start + 1))" "$WATCHER_LOG" 2>/dev/null || true)"
+      case "$new" in *"service healthy"*|*"re-armed"*) armed=yes; break ;; esac
+      sleep 0.5
+    done
+  else
+    sleep 8; armed=yes  # watcher started by hand, no log to read
+  fi
+  [ -n "$armed" ] && say "watcher armed" || say "WARNING: watcher did not confirm it is armed; wait a few seconds before triggering"
+fi
+say "ready — healthy. You can trigger the incident now."

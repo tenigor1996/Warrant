@@ -61,6 +61,29 @@ if [ -z "${DASHBOARD_OPEN_CMD:-}" ]; then
 fi
 
 echo "[START] Warrant demo"
+
+# Already running (e.g. the icon was double-clicked twice)? Do not reset it:
+# a reset would wipe the live run. Just bring the dashboard back up.
+port_busy() { (echo > "/dev/tcp/127.0.0.1/$1") 2>/dev/null; }
+busy=""
+for port in 8081 8082 8083; do port_busy "$port" && busy="$busy $port"; done
+if [ -n "$busy" ]; then
+  if curl -fsS -m 2 http://localhost:8081/health >/dev/null 2>&1 \
+     && curl -fsS -m 2 http://localhost:8082/status >/dev/null 2>&1; then
+    echo "[START] the demo is already running — not resetting it."
+    if curl -fsS -m 2 "$DASHBOARD_URL" >/dev/null 2>&1 && [ -n "$DASHBOARD_OPEN_CMD" ]; then
+      $DASHBOARD_OPEN_CMD "$DASHBOARD_URL" >/dev/null 2>&1 &
+      echo "[START] dashboard opened: $DASHBOARD_URL"
+    fi
+    echo "[START] to restart from scratch, close the demo's other window first."
+    sleep 4
+    exit 0
+  fi
+  echo "[START] port(s)$busy already in use by something else. Stop it, then start again."
+  read -r -p "Press Enter to close." _
+  exit 1
+fi
+
 ensure_python || { read -r -p "Press Enter to close." _; exit 1; }
 "$SCRIPTS/reset_demo.sh" || { echo "[START] reset failed"; read -r -p "Press Enter to close." _; exit 1; }
 
