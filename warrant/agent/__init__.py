@@ -1,6 +1,9 @@
 """
-agent — The reasoning loop.
+agent — Autonomous incident investigation.
 
-agent.py       : the plan → act → observe loop (Agent).
-llm_client.py  : thin client for the local LLM (LLMClient). Never executes anything.
+server.py      HTTP intake (:8082): POST /investigate, GET /status, GET /diagnosis
+agent.py       the LLM tool-calling loop
+llm_client.py  local model client (vLLM OpenAI-compatible API); never executes anything
+tools.py       read-only evidence tools
+events.py      investigation timeline -> state/events.jsonl
 """

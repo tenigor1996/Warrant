@@ -2,4 +2,10 @@ __pycache__/
 *.pyc
 .venv/
 .pytest_cache/
+.env
+*.log
+node_modules/
+
+# Runtime artifacts: simulated service repo, logs, metrics, events, diagnosis
+warrant/state/
 warrant/data/audit.jsonl
