@@ -1,10 +1,17 @@
 #!/usr/bin/env python3
 """Authoritative incident-report hasher and HTML renderer.
 
-This script owns the report hash. It computes SHA-256 over the canonical
-serialization of the report with ``report_sha256`` zeroed out, writes the digest
-back into the report, and renders a standalone HTML view of it. The dashboard
-only ever *displays* ``report.report_sha256``; it never recomputes it.
+This script owns the report hash. The canonicalization is fixed by team
+agreement and must match the generator byte-for-byte:
+
+    1. remove the ``report_sha256`` key from the report entirely
+    2. json.dumps(report, sort_keys=True, separators=(",", ":"))
+    3. encode UTF-8
+    4. SHA-256
+    5. store the lowercase hex digest back into ``report_sha256``
+
+The dashboard only ever *displays* ``report.report_sha256``; it never
+recomputes it.
 
 Usage:
     python report_renderer.py                      # reads ../fixtures/report.json
@@ -36,16 +43,18 @@ DEFAULT_INPUT = os.path.join(
 def canonical_bytes(report):
     """Canonical serialization used for hashing.
 
-    The hash field is zeroed rather than removed, so the digest covers the key
-    itself and the shape of a hashed report matches an unhashed one.
+    The hash field is removed, not zeroed: an unhashed report and a sealed one
+    canonicalize identically, so a digest can be re-verified from the stored
+    report. Any stored ``report_sha256`` is therefore excluded from its own
+    digest.
     """
     payload = dict(report)
-    payload[HASH_FIELD] = ""
+    payload.pop(HASH_FIELD, None)
     return json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
 
 
 def compute_sha256(report):
-    """Return the hex digest for ``report`` (its stored hash is ignored)."""
+    """Return the lowercase hex digest for ``report`` (its stored hash is ignored)."""
     return hashlib.sha256(canonical_bytes(report)).hexdigest()
 
 
