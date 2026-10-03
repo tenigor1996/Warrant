@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=Warrant Demo
+Comment=Start the Warrant demo (finds the repo, resets, starts everything, opens the dashboard). The incident is triggered separately.
+Exec=bash -c 'IFS=; set -f; l=$(find ~ -maxdepth 6 -path */warrant/scripts/launch_from_icon.sh -not -path */.* 2>/dev/null | head -n 1); [ -f ${l:-/nonexistent} ] && exec bash $l $1; echo Warrant repo not found under your home folder.; read -r x' warrant-demo %k
+Icon=media-playback-start
+Terminal=true
+Categories=Utility;
