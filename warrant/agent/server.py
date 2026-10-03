@@ -9,6 +9,9 @@ agent/server.py — Agent HTTP API (port 8082).
     GET  /diagnosis     latest diagnosis (available as soon as it is submitted)
     GET  /outcome       actions proposed, policy verdicts, tests, verification
 
+When an incident ends (after the last verification, or when the run gives up)
+the report is written to state/report.json; see report.py.
+
 One investigation at a time; a second POST while one runs gets 409.
 
 The model runtime is chosen by WARRANT_AGENT_BACKEND (see backends.py):
@@ -27,6 +30,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from warrant.agent import backends, config
 from warrant.agent.events import EventStream
 from warrant.agent.outcome import Outcome
+from warrant.agent.report import generate_incident_report
 
 _lock = threading.Lock()
 _state = {"state": "idle", "incident_id": None, "started_at": None, "diagnosis": None,
@@ -40,12 +44,18 @@ def _run(event, backend=None):
     try:
         outcome.reset(event["incident_id"], event)
         config.DIAGNOSIS_FILE.unlink(missing_ok=True)
+        config.REPORT_FILE.unlink(missing_ok=True)  # the previous incident's report
         backend = backend or backends.get_backend()
         result = backend.run(event, stream, outcome)
         remediation = result.get("remediation")
         diagnosis = {k: v for k, v in result.items() if k != "remediation"}
         config.DIAGNOSIS_FILE.write_text(json.dumps(diagnosis, indent=2))
         resolved = bool(remediation) and remediation.get("status") == "resolved"
+        try:  # the incident is over; a report problem must not change how it ended
+            generate_incident_report(outcome, stream)
+        except Exception:
+            traceback.print_exc()
+            stream.emit("report", "status", "Incident report not generated", "see the agent log")
         with _lock:
             _state.update(state="resolved" if resolved else diagnosis["status"], diagnosis=diagnosis,
                           remediation=remediation)

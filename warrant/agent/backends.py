@@ -23,7 +23,7 @@ import subprocess
 
 from warrant.agent import agent, config
 from warrant.agent.events import EventStream
-from warrant.agent.outcome import Outcome
+from warrant.agent.outcome import RECOVERED, Outcome, final_status
 
 BACKENDS = ("openclaw", "direct")
 
@@ -160,9 +160,8 @@ def _remediation_summary(data: dict):
     verification = data.get("verification")
     if not data.get("actions_proposed") and not verification:
         return None
-    recovered = bool(verification and verification.get("recovered"))
-    return {"status": "resolved" if recovered else "unresolved",
-            "final_status": "RECOVERED" if recovered else "NOT_RECOVERED",
+    status = final_status(verification)
+    return {"status": "resolved" if status == RECOVERED else "unresolved", "final_status": status,
             "verification": verification}
 
 

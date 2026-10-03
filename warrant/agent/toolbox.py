@@ -11,6 +11,7 @@ decided. Model reasoning is not recorded here.
 
 import json
 import time
+from datetime import datetime, timezone
 
 from warrant.agent import remediation, tools
 
@@ -80,7 +81,8 @@ def _record(name, arguments, call_text, result, duration, phase, events, outcome
             _emit(events, "act", "status", "Remediation applied" if applied else "Remediation failed",
                   str(result.get("detail", ""))[:400])
             if applied and outcome is not None:
-                outcome.update(action_executed=result["detail"])
+                outcome.update(action_executed=result["detail"],
+                               action_executed_at=datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"))
         return
 
     if name == "run_tests" and "error" not in result:

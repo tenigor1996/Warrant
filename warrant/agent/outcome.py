@@ -14,6 +14,17 @@ import fcntl
 import json
 from pathlib import Path
 
+RECOVERED = "RECOVERED"            # recovery verification ran and passed
+NOT_RECOVERED = "NOT_RECOVERED"    # recovery verification ran and failed
+UNVERIFIED = "UNVERIFIED"          # recovery verification never ran
+
+
+def final_status(verification) -> str:
+    """The one place a verification result becomes a final status (report, /status, backends)."""
+    if not verification:
+        return UNVERIFIED
+    return RECOVERED if verification.get("recovered") is True else NOT_RECOVERED
+
 
 class Outcome:
     def __init__(self, path: Path):
@@ -22,7 +33,7 @@ class Outcome:
     def reset(self, incident_id: str, event: dict = None) -> None:
         self._write(lambda _: {"incident_id": incident_id, "event": event or {}, "diagnosis": None,
                                "tools_used": [], "actions_proposed": [], "action_executed": None,
-                               "tests": None, "verification": None})
+                               "action_executed_at": None, "tests": None, "verification": None})
 
     def load(self) -> dict:
         try:

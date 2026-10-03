@@ -11,4 +11,5 @@ remediation.py  policy-gated remediation tools, run_tests, verify_recovery
 toolbox.py      runs a tool call and records it on the timeline (shared by both backends)
 events.py       timeline -> state/events.jsonl
 outcome.py      per-incident result -> state/outcome.json
+report.py       final incident report -> state/report.json (hash from warrant/report)
 """
