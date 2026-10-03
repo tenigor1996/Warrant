@@ -870,11 +870,30 @@
 
     safeRender("data-source", renderDataSource);
     safeRender("status", function () { renderStatus(health); });
+
+    // Display only: hands the same health reading to the vitals ribbon
+    // (vitals.js). Guarded like every other panel, so a shader or GPU
+    // problem can never blank a panel or stop the poll loop.
+    safeRender("vitals", function () {
+      if (window.WarrantVitals) {
+        window.WarrantVitals.setHealth(health, report && report.final_status);
+      }
+    });
     safeRender("timeline", function () { renderTimeline(valid); });
     safeRender("policy", function () { renderPolicy(valid); });
     safeRender("rootcause", function () { renderRootCause(valid, report); });
     safeRender("recovery", function () { renderRecovery(report); });
     safeRender("report", function () { renderReport(report); });
+
+    // Display only: hands the same report and the same event array the panels
+    // already show to the case-file header and the timeline's elapsed gutter
+    // (case.js). Guarded like every other panel, so a display problem there
+    // can never blank a panel or stop the poll loop.
+    safeRender("casefile", function () {
+      if (window.WarrantCase) {
+        window.WarrantCase.render(report, valid);
+      }
+    });
   }
 
   function startPolling() {

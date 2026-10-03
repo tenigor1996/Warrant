@@ -3,17 +3,87 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>WARRANT — Incident Engineer</title>
+  <title>WARRANT — Incident Record</title>
+  <meta
+    name="description"
+    content="Warrant: a local autonomous incident engineer. One incident record covering live service vitals, the agent timeline, policy decisions and the hashed report."
+  />
+  <meta name="color-scheme" content="dark light" />
+  <meta name="theme-color" content="#070a0e" media="(prefers-color-scheme: dark)" />
+  <meta name="theme-color" content="#f6f4f0" media="(prefers-color-scheme: light)" />
+
+  <!-- Inline so the mark survives an offline demo: Dell-blue rule, NVIDIA-green state dot. -->
+  <link
+    rel="icon"
+    href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23070a0e'/%3E%3Crect x='7' y='7' width='3.5' height='18' rx='1.75' fill='%230076ce'/%3E%3Ccircle cx='20' cy='16' r='3.5' fill='%2376b900'/%3E%3C/svg%3E"
+  />
+
+  <link rel="preload" href="fonts/Geist-Variable.woff2" as="font" type="font/woff2" crossorigin />
   <link rel="stylesheet" href="styles.css" />
+
+  <!--
+    Pre-paint decisions, kept inline and tiny so neither one flashes.
+
+      THEME  An explicit Light/Dark choice is stored under "warrant.theme" and
+             applied here as data-theme. "auto" (or nothing stored, or a
+             localStorage that throws in a private window) leaves the attribute
+             off, and the prefers-color-scheme block in styles.css resolves it.
+
+      BOOT   data-boot="on" lets the boot overlay cover the page from the very
+             first paint, so the dashboard is never briefly visible underneath
+             it. ?boot=0 skips the boot sequence; prefers-reduced-motion gets
+             data-boot="still", one frame and an opacity fade with no motion.
+             boot.js clears the attribute immediately if WebGL is refused.
+  -->
+  <script>
+    (function () {
+      var h = document.documentElement;
+      try {
+        var choice = localStorage.getItem("warrant.theme");
+        if (choice === "light" || choice === "dark") h.setAttribute("data-theme", choice);
+      } catch (err) {
+        /* private windows throw on access; auto is the right fallback */
+      }
+      if (!/[?&]boot=0\b/.test(window.location.search)) {
+        var reduce =
+          window.matchMedia &&
+          window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+        h.setAttribute("data-boot", reduce ? "still" : "on");
+      }
+    })();
+  </script>
+
+  <!-- defer preserves document order: theme tokens settle, boot takes the GPU
+       first and hands it to the vitals ribbon on release, app.js polls last. -->
+  <script src="theme.js" defer></script>
+  <script src="boot.js" defer></script>
+  <script src="vitals.js" defer></script>
+  <script src="case.js" defer></script>
   <script src="app.js" defer></script>
 </head>
 <body>
+  <a class="skip-link" href="#h-timeline">Skip to the agent timeline</a>
+
+  <!-- Boot sequence. Covers the page while the dashboard behind it is already
+       polling; click, any key or Escape dismisses it. aria-hidden throughout:
+       it carries no information the record below does not. -->
+  <div class="boot" id="boot" aria-hidden="true">
+    <div class="boot-stage" id="boot-stage">
+      <canvas class="boot-canvas" id="boot-canvas" aria-hidden="true"></canvas>
+    </div>
+    <p class="boot-mark">
+      <span class="boot-wordmark">WARRANT</span>
+      <span class="boot-sub">Autonomous incident engineer</span>
+    </p>
+  </div>
+
   <header class="topbar">
     <div class="wordmark">WARRANT</div>
+
     <div class="topbar-right">
       <!-- Provenance of the data on screen: LIVE = read from state/,
            FIXTURE = a feed fell back to fixtures/ this tick. -->
-      <div id="data-source" class="data-source">
+      <div id="data-source" class="data-source" role="status" aria-live="polite">
         <span id="src-mode" class="src-mode src-none">NO DATA</span>
         <span class="src-feeds">
           <span id="src-health" class="src-chip src-none">health</span>
@@ -21,25 +91,55 @@
           <span id="src-report" class="src-chip src-none">report</span>
         </span>
       </div>
-      <button id="trigger-btn" type="button">Trigger Demo Incident</button>
+
+      <!-- Labelled rather than iconographic: the control says what it does,
+           and Auto is a real third state, not a derived one. -->
+      <fieldset class="theme-switch" id="theme-switch">
+        <legend class="sr-only">Colour theme</legend>
+        <input type="radio" name="warrant-theme" id="theme-auto" value="auto" />
+        <label for="theme-auto">Auto</label>
+        <input type="radio" name="warrant-theme" id="theme-light" value="light" />
+        <label for="theme-light">Light</label>
+        <input type="radio" name="warrant-theme" id="theme-dark" value="dark" />
+        <label for="theme-dark">Dark</label>
+      </fieldset>
+
+      <button id="trigger-btn" type="button">Trigger demo incident</button>
     </div>
   </header>
 
-  <main class="grid">
-    <section id="panel-status" class="panel panel-wide">
-      <h2>Service Status</h2>
-      <div class="panel-body">
-        <div class="status-head">
+  <!-- Full-bleed status band: the vitals ribbon runs edge to edge and the
+       pill, the timestamp and the three metrics read off it as one instrument. -->
+  <section id="panel-status" class="band" aria-labelledby="h-status">
+    <h2 id="h-status" class="sr-only">Service status</h2>
+    <div class="panel-body band-body">
+      <!-- Vitals ribbon. A WebGL read of the same health feed the metrics
+           beside it show: filament amplitude from the failure rate, tearing
+           from error volume, drift from p95 latency, hue from status, and the
+           ambient level from the active theme. Decorative to look at, driven
+           entirely by real data. The fallback div is what renders with
+           hardware acceleration off, on a blocklisted GPU, or after a lost
+           context, and carries the same colour state. Force that branch with
+           ?vitals=fallback. -->
+      <div id="vitals" class="vitals" aria-hidden="true">
+        <div class="vitals-fallback"></div>
+        <canvas class="vitals-canvas"></canvas>
+        <span class="vitals-caption">Service vitals</span>
+      </div>
+
+      <div class="band-instrument">
+        <div class="band-state">
           <span id="status-pill" class="pill pill-unknown">UNKNOWN</span>
           <span id="status-updated" class="status-updated">Last update —</span>
         </div>
+
         <div class="tiles">
-          <div class="tile">
-            <div class="tile-label">Failure Rate</div>
+          <div class="tile tile-lead">
+            <div class="tile-label">Failure rate</div>
             <div id="metric-failure" class="tile-value">—</div>
           </div>
           <div class="tile">
-            <div class="tile-label">P95 Latency</div>
+            <div class="tile-label">P95 latency</div>
             <div id="metric-latency" class="tile-value">—</div>
           </div>
           <div class="tile">
@@ -48,32 +148,66 @@
           </div>
         </div>
       </div>
-    </section>
+    </div>
+  </section>
 
-    <section id="panel-timeline" class="panel">
-      <h2>Live Agent Timeline</h2>
-      <div class="panel-body placeholder">Waiting for agent activity…</div>
-    </section>
+  <!-- The record header. Filled by case.js from the same report the panels
+       read, which is what makes the page a document about one incident rather
+       than a console that happens to be pointed at one. -->
+  <section class="caseline" aria-labelledby="case-heading">
+    <h1 class="case-title" id="case-heading">
+      Incident <span class="case-id mono" id="case-id">pending</span>
+    </h1>
+    <dl class="case-facts">
+      <div class="case-fact">
+        <dt>Detected</dt>
+        <dd class="mono" id="case-detected">—</dd>
+      </div>
+      <div class="case-fact">
+        <dt>Elapsed</dt>
+        <dd class="mono" id="case-elapsed">—</dd>
+      </div>
+      <div class="case-fact">
+        <dt>Final status</dt>
+        <dd class="case-status" id="case-status">—</dd>
+      </div>
+    </dl>
+  </section>
 
-    <section id="panel-policy" class="panel">
-      <h2>Policy Decisions</h2>
-      <div class="panel-body placeholder">No policy decisions yet…</div>
-    </section>
+  <div class="case-body">
+    <main class="case-main">
+      <section id="panel-timeline" aria-labelledby="h-timeline">
+        <h2 id="h-timeline" class="section-head">What the agent did</h2>
+        <p class="section-note">
+          Every step the agent took, in order. The left gutter carries the time
+          elapsed since detection and, where the step was measured, how long it
+          ran.
+        </p>
+        <div class="panel-body placeholder">Waiting for agent activity…</div>
+      </section>
+    </main>
 
-    <section id="panel-rootcause" class="panel">
-      <h2>Root Cause</h2>
-      <div class="panel-body placeholder">Not yet diagnosed…</div>
-    </section>
+    <aside class="case-rail" aria-label="Incident summary">
+      <section id="panel-rootcause" aria-labelledby="h-rootcause">
+        <h2 id="h-rootcause" class="section-head section-head-rail">Root cause</h2>
+        <div class="panel-body placeholder">Not yet diagnosed…</div>
+      </section>
 
-    <section id="panel-recovery" class="panel">
-      <h2>Recovery</h2>
-      <div class="panel-body placeholder">No remediation yet…</div>
-    </section>
+      <section id="panel-policy" aria-labelledby="h-policy">
+        <h2 id="h-policy" class="section-head section-head-rail">Policy decisions</h2>
+        <div class="panel-body placeholder">No policy decisions yet…</div>
+      </section>
 
-    <section id="panel-report" class="panel">
-      <h2>Incident Report</h2>
-      <div class="panel-body placeholder">Report pending…</div>
-    </section>
-  </main>
+      <section id="panel-recovery" aria-labelledby="h-recovery">
+        <h2 id="h-recovery" class="section-head section-head-rail">Recovery</h2>
+        <div class="panel-body placeholder">No remediation yet…</div>
+      </section>
+
+      <section id="panel-report" aria-labelledby="h-report">
+        <h2 id="h-report" class="section-head section-head-rail">Report</h2>
+        <div class="panel-body placeholder">Report pending…</div>
+      </section>
+    </aside>
+  </div>
 </body>
 </html>

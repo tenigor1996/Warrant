@@ -1,437 +1,1492 @@
-:root {
-  --bg: #0b0d10;
-  --text: #e6e9ef;
-  --panel: #14181f;
-  --border: #232833;
-  --muted: #8b94a7;
-  /* Verdict palette, shared by the policy panel, timeline and report. */
-  --allowed: #4ade80;
-  --denied: #ff3838;
+/* ============================================================================
+   WARRANT — incident record design system
+   ----------------------------------------------------------------------------
+   The page is a document about one incident that happens to be live, not a
+   panel grid. That decision drives everything below:
+
+     - Panels are separated by whitespace, hairline rules and type hierarchy.
+       There is no card chrome.
+     - Exactly one element on the page is boxed, bordered and elevated: the
+       DENIED policy frame. Elevation means something because it appears once.
+     - Uppercase tracked type is reserved for instrument labels (metric names,
+       field labels, phase tags). Section headers are real headers.
+
+   Dell x NVIDIA, separated by ROLE so the page still reads as having one
+   accent:
+
+     Dell blue   (--accent)    structure and identity. Chrome, focus rings,
+                               the wordmark, investigative phases, interaction.
+     NVIDIA green (--allowed)  semantics only. ALLOWED, RECOVERED, tests
+                               passed.
+
+   Red is denial and nothing else. Amber is a pending policy decision and
+   nothing else. No fifth hue enters the page.
+
+   THEMING
+   Dark is the default in :root. Light overrides live in two places that must
+   stay in sync: :root[data-theme="light"] for an explicit choice, and the
+   prefers-color-scheme block for first visits with nothing stored. The second
+   is scoped to :root:not([data-theme]) so an explicit choice always wins.
+
+   Light is not an inversion. The dark theme is emissive (glow, washes,
+   tinted shadows on near-black); the light theme is reflective (warm paper,
+   real elevation shadows, darker ink variants of each accent). Both are
+   checked for WCAG AA on body text, muted text, phase labels and every
+   chip/wash combination.
+   ========================================================================= */
+
+/* ---------- typeface (self-hosted; the demo must survive no network) ------ */
+
+@font-face {
+  font-family: "Geist";
+  src: url("fonts/Geist-Variable.woff2") format("woff2-variations");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
 }
 
-* { box-sizing: border-box; }
+@font-face {
+  font-family: "Geist Mono";
+  src: url("fonts/GeistMono-Variable.woff2") format("woff2-variations");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
 
-html, body {
+/* ============================================================================
+   TOKENS — dark (default)
+   ========================================================================= */
+
+:root {
+  color-scheme: dark;
+
+  /* ---- surfaces: one cool blue-tinted family, lit from above ---- */
+  --bg: #070a0e;
+  --bg-top: #0a0e14;
+  --panel: #0d1218;
+  --inset: #0a0f15;
+  --raised: #141c27;
+  --line: #1b2533;
+  --line-strong: #27354a;
+  --rule-ink: rgba(255, 255, 255, 0.05);
+
+  /* ---- text ---- */
+  --text: #e8edf4;
+  --text-2: #aab6c6;
+  --muted: #7c8b9e;
+
+  /* ---- brand: Dell blue ---- */
+  --accent: #0076ce;
+  --accent-bright: #2a95e8;
+  --accent-text: #2a95e8; /* the variant that clears AA as text */
+  --accent-lift: #58b0f0;
+  --accent-deep: #00538f;
+  --accent-wash: rgba(0, 118, 206, 0.14);
+  --accent-line: rgba(0, 118, 206, 0.34);
+
+  /* ---- verdicts: NVIDIA green / red / amber ---- */
+  --allowed: #76b900;
+  --allowed-bright: #93dd0a;
+  --allowed-text: #93dd0a;
+  --allowed-wash: rgba(118, 185, 0, 0.12);
+  --allowed-line: rgba(118, 185, 0, 0.34);
+
+  --denied: #ff3b30;
+  --denied-strong: #ff3b30;
+  --denied-soft: #ff8c85;
+  --denied-text: #ff8c85;
+  --denied-wash: rgba(255, 59, 48, 0.1);
+  --denied-line: rgba(255, 59, 48, 0.42);
+
+  --warn: #f0a400;
+  --warn-text: #f5bb43;
+  --warn-wash: rgba(240, 164, 0, 0.14);
+  --warn-line: rgba(240, 164, 0, 0.34);
+
+  --slate-wash: rgba(124, 139, 158, 0.12);
+  --slate-text: #a3b0c2;
+
+  /* ---- type scale ---- */
+  --t-11: 11px;
+  --t-12: 12px;
+  --t-13: 13px;
+  --t-15: 15px;
+  --t-17: 17px;
+  --t-20: 20px;
+  --t-25: 25px;
+  --t-31: 31px;
+  --t-40: 40px;
+  --t-52: 52px;
+
+  /* ---- radii: tighter inward, softer on the one container that has one ---- */
+  --r-xs: 3px;
+  --r-sm: 5px;
+  --r-md: 8px;
+  --r-lg: 13px;
+  --r-xl: 18px;
+
+  /* ---- elevation. Dark: a tinted glow plus depth. Light: real shadow. ---- */
+  --elev-1: 0 1px 2px rgba(3, 7, 13, 0.7);
+  --elev-2: 0 8px 24px -8px rgba(3, 7, 13, 0.85);
+  --elev-3: 0 28px 70px -18px rgba(3, 7, 13, 0.92);
+  --elev-denied: 0 0 0 1px var(--denied-line), 0 18px 44px -18px rgba(255, 59, 48, 0.4),
+    0 2px 10px -4px rgba(3, 7, 13, 0.8);
+  --inner-lift: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+
+  /* ---- band scrim: keeps the instrument legible over the live ribbon ---- */
+  --band-scrim-a: rgba(7, 10, 14, 0.94);
+  --band-scrim-b: rgba(7, 10, 14, 0.62);
+  --scrim-flat: rgba(7, 10, 14, 0.78);
+  --band-wash: radial-gradient(
+    820px 240px at 12% 120%,
+    rgba(0, 118, 206, 0.16),
+    transparent 70%
+  );
+
+  /* ---- page ambient wash + grain ---- */
+  --page-wash: radial-gradient(
+      1200px 420px at 50% -140px,
+      rgba(0, 118, 206, 0.1),
+      transparent 70%
+    ),
+    linear-gradient(180deg, var(--bg-top) 0%, var(--bg) 440px);
+  --grain-opacity: 0.035;
+  --grain-blend: overlay;
+
+  /* ---- what the shaders need to know about the page behind them.
+          0 is a dark room, 1 is white paper. vitals.js and boot.js both read
+          this and pass it in as a uniform, so a theme change is one token. --- */
+  --gl-ambient: 0.05;
+
+  /* ---- motion ---- */
+  --ease: cubic-bezier(0.32, 0.72, 0, 1);
+  --ease-spring: cubic-bezier(0.34, 1.4, 0.64, 1);
+
+  /* ---- z-index scale: systemic layers only ---- */
+  --z-grain: 5;
+  --z-modal: 50;
+  --z-boot: 80;
+
+  /* ---- measure ---- */
+  --page: 1360px;
+  --gutter: clamp(20px, 3.2vw, 44px);
+  --tl-gutter: 76px;
+  --tl-gap: 26px;
+  --rail-top: 22px;
+}
+
+/* ============================================================================
+   TOKENS — light
+   ----------------------------------------------------------------------------
+   Warm-neutral paper, not #fff. Each accent gains a darker ink variant for
+   text and borders while the bright one stays for fills and glow, because
+   #76b900 and #f0a400 both fail AA as text on a light surface.
+   ========================================================================= */
+
+:root[data-theme="light"] {
+  color-scheme: light;
+
+  --bg: #f6f4f0;
+  --bg-top: #fbf9f6;
+  --panel: #fbf9f6;
+  --inset: #efece6;
+  --raised: #ffffff;
+  --line: #e0dbd2;
+  --line-strong: #c7bfb2;
+  --rule-ink: rgba(26, 24, 22, 0.07);
+
+  --text: #1a1816;
+  --text-2: #4a4641;
+  --muted: #655f57;
+
+  --accent: #0076ce;
+  --accent-bright: #0076ce;
+  --accent-text: #00558f;
+  --accent-lift: #00558f;
+  --accent-deep: #003f6b;
+  --accent-wash: rgba(0, 118, 206, 0.13);
+  --accent-line: rgba(0, 118, 206, 0.4);
+
+  --allowed: #76b900;
+  --allowed-bright: #76b900;
+  --allowed-text: #456c00;
+  --allowed-wash: rgba(118, 185, 0, 0.2);
+  --allowed-line: rgba(69, 108, 0, 0.42);
+
+  --denied: #d81f14;
+  --denied-strong: #d81f14;
+  --denied-soft: #b81109;
+  --denied-text: #b81109;
+  --denied-wash: rgba(216, 31, 20, 0.08);
+  --denied-line: rgba(216, 31, 20, 0.5);
+
+  --warn: #f0a400;
+  --warn-text: #7d5100;
+  --warn-wash: rgba(240, 164, 0, 0.22);
+  --warn-line: rgba(125, 81, 0, 0.38);
+
+  --slate-wash: rgba(101, 95, 87, 0.1);
+  --slate-text: #4a4641;
+
+  /* Elevation, not glow: a warm shadow cast by a single light from above. */
+  --elev-1: 0 1px 2px rgba(50, 42, 32, 0.08);
+  --elev-2: 0 10px 28px -12px rgba(50, 42, 32, 0.22), 0 1px 2px rgba(50, 42, 32, 0.07);
+  --elev-3: 0 34px 80px -24px rgba(50, 42, 32, 0.34), 0 2px 6px rgba(50, 42, 32, 0.08);
+  --elev-denied: 0 0 0 1px var(--denied-line), 0 16px 38px -16px rgba(152, 20, 12, 0.3),
+    0 2px 6px rgba(50, 42, 32, 0.1);
+  --inner-lift: inset 0 1px 0 rgba(255, 255, 255, 0.9);
+
+  --band-scrim-a: rgba(246, 244, 240, 0.95);
+  --band-scrim-b: rgba(246, 244, 240, 0.6);
+  --scrim-flat: rgba(246, 244, 240, 0.8);
+  --band-wash: radial-gradient(
+    820px 240px at 12% 120%,
+    rgba(0, 118, 206, 0.09),
+    transparent 70%
+  );
+
+  --page-wash: radial-gradient(
+      1200px 420px at 50% -140px,
+      rgba(0, 118, 206, 0.07),
+      transparent 70%
+    ),
+    linear-gradient(180deg, var(--bg-top) 0%, var(--bg) 440px);
+  /* Overlay on paper muddies it. Multiply at a lower opacity reads as tooth. */
+  --grain-opacity: 0.026;
+  --grain-blend: multiply;
+
+  --gl-ambient: 0.88;
+}
+
+/* First visit with nothing stored: follow the system. Scoped to pages with no
+   explicit data-theme so a stored Light/Dark choice always wins. */
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme]) {
+    color-scheme: light;
+
+    --bg: #f6f4f0;
+    --bg-top: #fbf9f6;
+    --panel: #fbf9f6;
+    --inset: #efece6;
+    --raised: #ffffff;
+    --line: #e0dbd2;
+    --line-strong: #c7bfb2;
+    --rule-ink: rgba(26, 24, 22, 0.07);
+
+    --text: #1a1816;
+    --text-2: #4a4641;
+    --muted: #655f57;
+
+    --accent: #0076ce;
+    --accent-bright: #0076ce;
+    --accent-text: #00558f;
+    --accent-lift: #00558f;
+    --accent-deep: #003f6b;
+    --accent-wash: rgba(0, 118, 206, 0.13);
+    --accent-line: rgba(0, 118, 206, 0.4);
+
+    --allowed: #76b900;
+    --allowed-bright: #76b900;
+    --allowed-text: #456c00;
+    --allowed-wash: rgba(118, 185, 0, 0.2);
+    --allowed-line: rgba(69, 108, 0, 0.42);
+
+    --denied: #d81f14;
+    --denied-strong: #d81f14;
+    --denied-soft: #b81109;
+    --denied-text: #b81109;
+    --denied-wash: rgba(216, 31, 20, 0.08);
+    --denied-line: rgba(216, 31, 20, 0.5);
+
+    --warn: #f0a400;
+    --warn-text: #7d5100;
+    --warn-wash: rgba(240, 164, 0, 0.22);
+    --warn-line: rgba(125, 81, 0, 0.38);
+
+    --slate-wash: rgba(101, 95, 87, 0.1);
+    --slate-text: #4a4641;
+
+    --elev-1: 0 1px 2px rgba(50, 42, 32, 0.08);
+    --elev-2: 0 10px 28px -12px rgba(50, 42, 32, 0.22), 0 1px 2px rgba(50, 42, 32, 0.07);
+    --elev-3: 0 34px 80px -24px rgba(50, 42, 32, 0.34), 0 2px 6px rgba(50, 42, 32, 0.08);
+    --elev-denied: 0 0 0 1px var(--denied-line),
+      0 16px 38px -16px rgba(152, 20, 12, 0.3), 0 2px 6px rgba(50, 42, 32, 0.1);
+    --inner-lift: inset 0 1px 0 rgba(255, 255, 255, 0.9);
+
+    --band-scrim-a: rgba(246, 244, 240, 0.95);
+    --band-scrim-b: rgba(246, 244, 240, 0.6);
+    --scrim-flat: rgba(246, 244, 240, 0.8);
+    --band-wash: radial-gradient(
+      820px 240px at 12% 120%,
+      rgba(0, 118, 206, 0.09),
+      transparent 70%
+    );
+
+    --page-wash: radial-gradient(
+        1200px 420px at 50% -140px,
+        rgba(0, 118, 206, 0.07),
+        transparent 70%
+      ),
+      linear-gradient(180deg, var(--bg-top) 0%, var(--bg) 440px);
+    --grain-opacity: 0.026;
+    --grain-blend: multiply;
+
+    --gl-ambient: 0.88;
+  }
+}
+
+/* ============================================================================
+   BASE
+   ========================================================================= */
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
   margin: 0;
   padding: 0;
   background: var(--bg);
   color: var(--text);
 }
 
-body {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica,
-    Arial, sans-serif;
-  font-size: 16px;
-  line-height: 1.45;
+html {
+  scroll-behavior: smooth;
+  -webkit-text-size-adjust: 100%;
 }
 
-/* ---------- header ---------- */
+body {
+  font-family: "Geist", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    Helvetica, Arial, sans-serif;
+  font-size: var(--t-15);
+  font-weight: 400;
+  line-height: 1.5;
+  font-feature-settings: "ss03", "cv01";
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-image: var(--page-wash);
+  background-repeat: no-repeat;
+  min-height: 100dvh;
+  padding-bottom: clamp(48px, 7vh, 92px);
+}
+
+/* Grain: breaks the digital flatness without an image request. Fixed and
+   pointer-events-none, never attached to a scrolling container. */
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-grain);
+  pointer-events: none;
+  opacity: var(--grain-opacity);
+  mix-blend-mode: var(--grain-blend);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+::selection {
+  background: var(--accent);
+  color: #fff;
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent-bright);
+  outline-offset: 2px;
+  border-radius: var(--r-xs);
+}
+
+h1,
+h2,
+p,
+dl,
+dd,
+dt,
+figure {
+  margin: 0;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+.skip-link {
+  position: fixed;
+  top: 10px;
+  left: 50%;
+  transform: translate(-50%, -160%);
+  z-index: var(--z-modal);
+  padding: 10px 18px;
+  border-radius: var(--r-md);
+  background: var(--accent);
+  color: #fff;
+  font-size: var(--t-13);
+  font-weight: 560;
+  text-decoration: none;
+  transition: transform 180ms var(--ease);
+}
+
+.skip-link:focus-visible {
+  transform: translate(-50%, 0);
+}
+
+.mono {
+  font-family: "Geist Mono", ui-monospace, SFMono-Regular, Menlo, Consolas,
+    "Liberation Mono", monospace;
+  font-feature-settings: "zero";
+  font-variant-numeric: tabular-nums;
+}
+
+/* Instrument labels: small, tracked, recessive. These name a reading, so they
+   stay uppercase. Section headers do not. */
+.tile-label,
+.rec-label,
+.rep-fact-label,
+.rep-section-title,
+.sha-label,
+.case-facts dt,
+.rc-chip-label,
+.pol-verdict,
+.act-verdict,
+.ev-source,
+.vitals-caption,
+.tl-phase {
+  font-size: var(--t-11);
+  font-weight: 560;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+/* ============================================================================
+   PAGE SHELL
+   ========================================================================= */
+
+.topbar,
+.band-instrument,
+.caseline,
+.case-body {
+  max-width: var(--page);
+  margin-inline: auto;
+  padding-inline: var(--gutter);
+}
+
+/* ---------- topbar ---------- */
 
 .topbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 24px;
-  padding: 20px 28px;
-  border-bottom: 1px solid var(--border);
-  background: #0e1116;
+  gap: 18px 24px;
+  flex-wrap: wrap;
+  padding-block: 20px 18px;
 }
 
 .wordmark {
-  font-size: 28px;
-  font-weight: 800;
-  letter-spacing: 0.22em;
-  text-transform: uppercase;
-}
-
-#trigger-btn {
-  min-width: 220px;
-  padding: 16px 28px;
-  font: inherit;
-  font-size: 16px;
-  font-weight: 800;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  display: inline-flex;
+  align-items: center;
+  gap: 11px;
+  font-size: var(--t-15);
+  font-weight: 640;
+  letter-spacing: 0.2em;
   color: var(--text);
-  background: #2b3444;
-  border: 1px solid #3a475c;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: background 600ms ease, color 600ms ease, border-color 600ms ease;
 }
 
-#trigger-btn:hover { background: #1f2634; }
-
-#trigger-btn.flash-ok {
-  background: #0f3b1f;
-  border-color: #1d6b38;
-  color: #4ade80;
+.wordmark::before {
+  content: "";
+  width: 3px;
+  height: 17px;
+  border-radius: 2px;
+  background: var(--accent);
 }
 
-#trigger-btn.flash-err {
-  background: #3b1414;
-  border-color: #6b1d1d;
-  color: #ff5a5a;
-}
-
-/* ---------- grid ---------- */
-
-.grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 20px;
-  padding: 24px 28px 40px;
-}
-
-.panel {
-  background: var(--panel);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 20px 22px 24px;
-  min-width: 0;
-}
-
-.panel-wide { grid-column: 1 / -1; }
-
-.panel h2 {
-  margin: 0 0 16px;
-  font-size: 14px;
-  font-weight: 700;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: var(--muted);
-}
-
-.placeholder {
-  color: var(--muted);
-  font-size: 18px;
-  min-height: 120px;
-}
-
-@media (max-width: 900px) {
-  .grid { grid-template-columns: minmax(0, 1fr); }
-}
-
-/* ---------- status panel ---------- */
-
-.status-head {
+.topbar-right {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 16px;
+  gap: 14px;
   flex-wrap: wrap;
-  margin-bottom: 22px;
 }
 
-.pill {
-  display: inline-block;
-  padding: 10px 26px;
-  border-radius: 999px;
-  font-size: 22px;
-  font-weight: 800;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
+/* ---------- data provenance ---------- */
+
+.data-source {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
 }
 
-.pill-healthy { background: #0f3b1f; color: #4ade80; }
-.pill-degraded {
-  background: #3b1414;
-  color: #ff5a5a;
-  animation: pill-pulse 1.6s ease-in-out infinite;
-}
-.pill-recovering { background: #3b2a0f; color: #fbbf24; }
-.pill-unknown { background: #232833; color: var(--muted); }
-
-@keyframes pill-pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.6; }
+.src-mode {
+  font-family: "Geist Mono", ui-monospace, Menlo, Consolas, monospace;
+  font-size: var(--t-11);
+  font-weight: 620;
+  letter-spacing: 0.12em;
+  padding: 4px 9px;
+  border-radius: var(--r-sm);
+  border: 1px solid transparent;
 }
 
-.status-updated {
-  font-size: 14px;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--muted);
+.src-feeds {
+  display: inline-flex;
+  gap: 5px;
 }
 
-.tiles {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 20px;
-}
-
-.tile {
-  background: #0f131a;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 18px 20px 20px;
-  min-width: 0;
-}
-
-.tile-label {
-  font-size: 14px;
-  font-weight: 700;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: var(--muted);
-  margin-bottom: 10px;
-}
-
-.tile-value {
-  font-size: 48px;
-  font-weight: 800;
-  line-height: 1.05;
-  font-variant-numeric: tabular-nums;
+.src-chip {
+  font-family: "Geist Mono", ui-monospace, Menlo, Consolas, monospace;
+  font-size: 10px;
+  font-weight: 560;
+  letter-spacing: 0.08em;
+  padding: 3px 7px;
+  border-radius: var(--r-xs);
+  border: 1px solid transparent;
   white-space: nowrap;
 }
 
-@media (max-width: 900px) {
-  .tiles { grid-template-columns: minmax(0, 1fr); }
+.src-live {
+  background: var(--allowed-wash);
+  border-color: var(--allowed-line);
+  color: var(--allowed-text);
 }
 
-/* ================= Phase 2 ================= */
-
-.mono {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono",
-    monospace;
+.src-fixture {
+  background: var(--warn-wash);
+  border-color: var(--warn-line);
+  color: var(--warn-text);
 }
 
-/* ---------- timeline ---------- */
+.src-none {
+  background: var(--slate-wash);
+  border-color: var(--line-strong);
+  color: var(--slate-text);
+}
 
-.timeline {
+/* ---------- theme switch ---------- */
+
+.theme-switch {
+  display: inline-flex;
+  min-inline-size: 0;
+  align-items: stretch;
+  margin: 0;
+  padding: 2px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--inset);
+  box-shadow: var(--inner-lift);
+}
+
+.theme-switch input {
+  position: absolute;
+  opacity: 0;
+  width: 1px;
+  height: 1px;
+  margin: 0;
+  pointer-events: none;
+}
+
+.theme-switch label {
+  display: inline-flex;
+  align-items: center;
+  padding: 5px 11px;
+  border-radius: var(--r-sm);
+  font-size: var(--t-11);
+  font-weight: 580;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  cursor: pointer;
+  user-select: none;
+  transition: color 180ms var(--ease), background-color 180ms var(--ease);
+}
+
+.theme-switch label:hover {
+  color: var(--text-2);
+}
+
+.theme-switch input:checked + label {
+  background: var(--accent);
+  color: #fff;
+  box-shadow: var(--elev-1);
+}
+
+.theme-switch input:focus-visible + label {
+  outline: 2px solid var(--accent-bright);
+  outline-offset: 2px;
+}
+
+/* ---------- trigger ---------- */
+
+#trigger-btn {
+  font: inherit;
+  font-size: var(--t-13);
+  font-weight: 580;
+  letter-spacing: 0.01em;
+  color: var(--text);
+  background: var(--raised);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-md);
+  padding: 8px 15px;
+  cursor: pointer;
+  box-shadow: var(--elev-1), var(--inner-lift);
+  transition: transform 180ms var(--ease), border-color 180ms var(--ease),
+    background-color 180ms var(--ease), box-shadow 180ms var(--ease);
+}
+
+#trigger-btn:hover {
+  border-color: var(--accent-line);
+  background: var(--accent-wash);
+  transform: translateY(-1px);
+}
+
+#trigger-btn:active {
+  transform: scale(0.985);
+}
+
+#trigger-btn.flash-ok {
+  border-color: var(--allowed-line);
+  background: var(--allowed-wash);
+  color: var(--allowed-text);
+}
+
+#trigger-btn.flash-err {
+  border-color: var(--denied-line);
+  background: var(--denied-wash);
+  color: var(--denied-text);
+}
+
+/* ============================================================================
+   STATUS BAND — full bleed instrument
+   ----------------------------------------------------------------------------
+   The ribbon runs edge to edge behind a scrim; the pill, the timestamp and the
+   three metrics sit over it. One instrument, not a row of tiles.
+   ========================================================================= */
+
+.band {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  border-block: 1px solid var(--line);
+  background-image: var(--band-wash);
+  background-color: var(--inset);
+}
+
+.band-body {
+  position: relative;
+  margin-top: 0;
+}
+
+/* Scrim over the live ribbon. Angled so the trace stays visible on the right
+   while the numbers on the left sit on solid ground. */
+.band::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background: linear-gradient(
+    101deg,
+    var(--band-scrim-a) 0%,
+    var(--band-scrim-a) 52%,
+    var(--band-scrim-b) 74%,
+    transparent 92%
+  );
+}
+
+.band-instrument {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  grid-template-columns: auto minmax(0, auto) minmax(72px, 1fr);
+  align-items: end;
+  gap: 20px clamp(26px, 4vw, 56px);
+  padding-block: 26px 28px;
+  min-height: 148px;
+}
+
+.band-state {
   display: flex;
   flex-direction: column;
+  align-items: flex-start;
   gap: 10px;
-  max-height: 440px;
-  overflow-y: auto;
-  padding-right: 6px;
-  scrollbar-color: #2b3444 transparent;
+}
+
+/* ---------- status pill ---------- */
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: "Geist Mono", ui-monospace, Menlo, Consolas, monospace;
+  font-size: var(--t-12);
+  font-weight: 640;
+  letter-spacing: 0.16em;
+  padding: 6px 13px;
+  border-radius: var(--r-sm);
+  border: 1px solid transparent;
+}
+
+/* Not decoration: the dot pulses only while the service is actually unwell,
+   so its motion is itself a reading. */
+.pill::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.pill-healthy {
+  background: var(--accent-wash);
+  border-color: var(--accent-line);
+  color: var(--accent-lift);
+}
+
+.pill-degraded {
+  background: var(--denied-wash);
+  border-color: var(--denied-line);
+  color: var(--denied-text);
+}
+
+.pill-degraded::before {
+  animation: pill-pulse 1.5s var(--ease) infinite;
+}
+
+.pill-recovering {
+  background: var(--warn-wash);
+  border-color: var(--warn-line);
+  color: var(--warn-text);
+}
+
+.pill-recovering::before {
+  animation: pill-pulse 2.4s var(--ease) infinite;
+}
+
+.pill-unknown {
+  background: var(--slate-wash);
+  border-color: var(--line-strong);
+  color: var(--slate-text);
+}
+
+@keyframes pill-pulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.35;
+    transform: scale(0.82);
+  }
+}
+
+.status-updated {
+  font-family: "Geist Mono", ui-monospace, Menlo, Consolas, monospace;
+  font-size: var(--t-12);
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+}
+
+/* ---------- metrics: type-led, tabular, deliberately unequal ---------- */
+
+.tiles {
+  display: flex;
+  align-items: flex-end;
+  gap: clamp(20px, 3vw, 40px);
+  flex-wrap: wrap;
+}
+
+.tile {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+/* Hairline separators instead of three identical boxes. */
+.tile + .tile {
+  padding-left: clamp(20px, 3vw, 40px);
+  border-left: 1px solid var(--line);
+}
+
+.tile-value {
+  font-family: "Geist Mono", ui-monospace, Menlo, Consolas, monospace;
+  font-size: var(--t-31);
+  font-weight: 540;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+}
+
+/* The failure rate is the headline reading, so it is not the same size as the
+   other two. */
+.tile-lead .tile-value {
+  font-size: clamp(38px, 4.6vw, 52px);
+  font-weight: 520;
+  letter-spacing: -0.035em;
+}
+
+/* ---------- vitals ribbon ---------- */
+
+.vitals {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  isolation: isolate;
+  overflow: hidden;
+
+  /* The fallback carries the same state the shader would show. vitals.js sets
+     data-tint; the colours themselves live here so they follow the theme. */
+  --vitals-tint: var(--slate-wash);
+  --vitals-line: var(--muted);
+}
+
+.vitals[data-tint="healthy"] {
+  --vitals-tint: var(--accent-wash);
+  --vitals-line: var(--accent-bright);
+}
+
+.vitals[data-tint="recovering"] {
+  --vitals-tint: var(--warn-wash);
+  --vitals-line: var(--warn);
+}
+
+.vitals[data-tint="degraded"] {
+  --vitals-tint: var(--denied-wash);
+  --vitals-line: var(--denied-strong);
+}
+
+.vitals[data-tint="recovered"] {
+  --vitals-tint: var(--allowed-wash);
+  --vitals-line: var(--allowed);
+}
+
+.vitals-canvas,
+.vitals-fallback {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+/* Shown until the context is up, and permanently on machines with hardware
+   acceleration off, a blocklisted GPU, or after a lost context. The widget is
+   decoration; this fallback is the contract. */
+.vitals-fallback {
+  background: linear-gradient(90deg, transparent, var(--vitals-tint) 50%, transparent),
+    repeating-linear-gradient(90deg, var(--rule-ink) 0 1px, transparent 1px 44px);
+}
+
+.vitals-fallback::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 2px;
+  transform: translateY(-50%);
+  border-radius: 2px;
+  background: var(--vitals-line);
+  opacity: 0.75;
+}
+
+.vitals[data-gl="on"] .vitals-fallback {
+  display: none;
+}
+
+.vitals-caption {
+  position: absolute;
+  bottom: 12px;
+  right: max(var(--gutter), calc((100% - var(--page)) / 2 + var(--gutter)));
+  z-index: 3;
+  pointer-events: none;
+}
+
+/* ============================================================================
+   CASE HEADER — what makes the page a record
+   ========================================================================= */
+
+.caseline {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 18px 44px;
+  flex-wrap: wrap;
+  padding-block: clamp(30px, 4vh, 48px) 0;
+  animation: rise-in 700ms var(--ease) both;
+}
+
+.case-title {
+  font-size: clamp(24px, 2.7vw, 34px);
+  font-weight: 560;
+  line-height: 1.1;
+  letter-spacing: -0.028em;
+  text-wrap: balance;
+}
+
+.case-id {
+  font-weight: 460;
+  letter-spacing: -0.01em;
+  color: var(--accent-text);
+}
+
+.case-facts {
+  display: flex;
+  align-items: flex-end;
+  gap: clamp(20px, 2.6vw, 38px);
+  flex-wrap: wrap;
+}
+
+.case-fact {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.case-facts dd {
+  font-size: var(--t-15);
+  font-weight: 520;
+  color: var(--text-2);
+}
+
+.case-facts dd.mono {
+  font-size: var(--t-13);
+}
+
+#case-elapsed {
+  color: var(--text);
+  font-weight: 560;
+}
+
+.case-status {
+  font-family: "Geist Mono", ui-monospace, Menlo, Consolas, monospace;
+  font-size: var(--t-12);
+  font-weight: 640;
+  letter-spacing: 0.14em;
+  color: var(--muted);
+}
+
+/* ============================================================================
+   BODY — asymmetric editorial split
+   ========================================================================= */
+
+.case-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: clamp(36px, 4.4vw, 64px);
+  padding-top: clamp(28px, 3.6vh, 42px);
+}
+
+@media (min-width: 1024px) {
+  .case-body {
+    grid-template-columns: minmax(0, 1fr) clamp(292px, 28vw, 396px);
+    align-items: start;
+  }
+
+  .case-rail {
+    position: sticky;
+    top: var(--rail-top);
+    max-height: calc(100dvh - var(--rail-top) - 20px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+    scrollbar-color: var(--line-strong) transparent;
+    /* Room inside the scrollport for the denied frame's elevation. */
+    margin-inline: -14px;
+    padding-inline: 14px;
+    padding-block: 2px 18px;
+  }
+}
+
+.case-main {
+  min-width: 0;
+}
+
+.case-rail {
+  display: flex;
+  flex-direction: column;
+  gap: clamp(28px, 3vw, 40px);
+  min-width: 0;
+}
+
+/* ---------- section headers: real headers, not micro-labels ---------- */
+
+.section-head {
+  font-size: clamp(19px, 1.5vw, 23px);
+  font-weight: 560;
+  line-height: 1.2;
+  letter-spacing: -0.018em;
+  color: var(--text);
+}
+
+.section-head-rail {
+  font-size: var(--t-17);
+  font-weight: 580;
+  letter-spacing: -0.012em;
+  padding-top: 15px;
+  border-top: 1px solid var(--line);
+}
+
+.section-note {
+  max-width: 58ch;
+  margin-top: 8px;
+  font-size: var(--t-13);
+  line-height: 1.6;
+  color: var(--muted);
+  text-wrap: pretty;
+}
+
+.panel-body {
+  margin-top: 18px;
+}
+
+.section-head-rail + .panel-body {
+  margin-top: 14px;
+}
+
+.placeholder {
+  font-size: var(--t-13);
+  color: var(--muted);
+  padding-block: 4px;
+}
+
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ============================================================================
+   TIMELINE — a true vertical timeline, read top to bottom
+   ========================================================================= */
+
+.timeline {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+
+/* The connecting rule. Inset top and bottom so it begins at the first node
+   and ends at the last instead of running off into whitespace. */
+.timeline::before {
+  content: "";
+  position: absolute;
+  left: calc(var(--tl-gutter) + var(--tl-gap) / 2);
+  top: 20px;
+  bottom: 24px;
+  width: 1px;
+  background: linear-gradient(
+    180deg,
+    transparent,
+    var(--line-strong) 24px,
+    var(--line-strong) calc(100% - 24px),
+    transparent
+  );
 }
 
 .tl-row {
+  position: relative;
   display: grid;
-  grid-template-columns: 104px minmax(0, 1fr) auto;
-  gap: 14px;
-  align-items: start;
-  padding: 12px 14px;
-  background: #0f131a;
-  border: 1px solid var(--border);
-  border-left: 4px solid #2b3444;
-  border-radius: 8px;
+  grid-template-columns: var(--tl-gutter) minmax(0, 1fr);
+  column-gap: var(--tl-gap);
+  row-gap: 3px;
+  padding-block: 13px 17px;
 }
 
-.tl-enter {
-  animation: tl-in 420ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+/* Elapsed stamp (injected by case.js) above the step duration, both
+   right-aligned against the rule. */
+.tl-time {
+  grid-column: 1;
+  grid-row: 1;
+  justify-self: end;
+  font-family: "Geist Mono", ui-monospace, Menlo, Consolas, monospace;
+  font-size: var(--t-12);
+  font-weight: 540;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.35;
+  color: var(--text-2);
+  white-space: nowrap;
 }
 
-@keyframes tl-in {
-  from { opacity: 0; transform: translateY(10px); }
-  to   { opacity: 1; transform: translateY(0); }
+.tl-dur {
+  grid-column: 1;
+  grid-row: 2;
+  justify-self: end;
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 1.5;
+  color: var(--muted);
+  white-space: nowrap;
 }
 
+/* The node. Sits on the rule, level with the phase label. */
+.tl-row::before {
+  content: "";
+  position: absolute;
+  left: calc(var(--tl-gutter) + var(--tl-gap) / 2 - 3.5px);
+  top: 17px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--line-strong);
+  box-shadow: 0 0 0 4px var(--bg);
+}
+
+/* Phase as a typographic label, not a pill. Role colours only: blue while
+   investigating, amber at the decision, green once acting. */
 .tl-phase {
-  font-size: 12px;
-  font-weight: 800;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  padding: 4px 8px;
-  border-radius: 5px;
-  text-align: center;
-  background: #1b2130;
+  grid-column: 2;
+  grid-row: 1;
   color: var(--muted);
 }
 
-/* phase accents */
-.phase-detect      { background: #10243d; color: #6aa7ff; }
-.phase-investigate { background: #0d2a2f; color: #35d6e8; }
-.phase-diagnose    { background: #221440; color: #a98bff; }
-.phase-plan        { background: #1b2130; color: #9fb0c9; }
-.phase-policy      { background: #332300; color: #fbbf24; }
-.phase-act         { background: #0f3b1f; color: var(--allowed); }
-.phase-verify      { background: #09302c; color: #2dd4bf; }
-.phase-report      { background: #232833; color: #b6bfd0; }
+.phase-detect,
+.phase-investigate,
+.phase-diagnose {
+  color: var(--accent-text);
+}
 
-.tl-main { min-width: 0; }
+.phase-plan {
+  color: var(--muted);
+}
+
+.phase-policy {
+  color: var(--warn-text);
+}
+
+.phase-act,
+.phase-verify {
+  color: var(--allowed-text);
+}
+
+.phase-report {
+  color: var(--muted);
+}
+
+.tl-row:has(.phase-detect)::before,
+.tl-row:has(.phase-investigate)::before,
+.tl-row:has(.phase-diagnose)::before {
+  background: var(--accent);
+}
+
+.tl-row:has(.phase-policy)::before {
+  background: var(--warn);
+}
+
+.tl-row:has(.phase-act)::before,
+.tl-row:has(.phase-verify)::before {
+  background: var(--allowed);
+}
+
+.tl-main {
+  grid-column: 2;
+  grid-row: 2;
+  min-width: 0;
+}
 
 .tl-title {
-  font-size: 18px;
-  font-weight: 700;
-  line-height: 1.3;
+  font-size: var(--t-15);
+  font-weight: 540;
+  line-height: 1.4;
+  letter-spacing: -0.008em;
+  color: var(--text);
+  text-wrap: pretty;
 }
 
 .tl-detail {
-  margin-top: 4px;
-  font-size: 14px;
+  margin-top: 5px;
+  max-width: 66ch;
+  font-size: var(--t-13);
+  line-height: 1.6;
+  color: var(--text-2);
+  text-wrap: pretty;
+}
+
+.tl-detail.mono {
+  font-size: var(--t-12);
+  line-height: 1.55;
   color: var(--muted);
   white-space: pre-wrap;
   overflow-wrap: anywhere;
+  padding: 8px 11px;
+  margin-top: 8px;
+  border-left: 2px solid var(--line-strong);
+  background: var(--inset);
+  border-radius: 0 var(--r-sm) var(--r-sm) 0;
 }
 
 .tl-verdict {
   display: inline-block;
-  margin-top: 8px;
-  padding: 3px 10px;
-  border-radius: 999px;
-  font-size: 13px;
-  font-weight: 800;
-  letter-spacing: 0.1em;
+  margin-top: 9px;
+  font-family: "Geist Mono", ui-monospace, Menlo, Consolas, monospace;
+  font-size: var(--t-11);
+  font-weight: 640;
+  letter-spacing: 0.14em;
 }
 
-.verdict-allowed { background: #0f3b1f; color: var(--allowed); }
-.verdict-denied  { background: #3b1414; color: var(--denied); }
-
-.tl-dur {
-  font-size: 13px;
-  color: var(--muted);
-  text-align: right;
-  white-space: nowrap;
-  font-variant-numeric: tabular-nums;
+.verdict-allowed {
+  color: var(--allowed-text);
 }
 
-.tl-policy { background: #141a24; }
-.tl-allowed { border-left-color: var(--allowed); }
-.tl-denied  { border-left-color: var(--denied); }
+.verdict-denied {
+  color: var(--denied-text);
+}
 
-/* ---------- policy decisions ---------- */
+/* An unrecognised verdict is shown plainly rather than dropped, so a contract
+   drift is visible instead of silent. */
+.verdict-unknown {
+  color: var(--warn-text);
+}
+
+/* A policy step is where the run turns, so its node and title carry it. The
+   timeline stays unboxed: the frame in the rail is the only box on the page. */
+.tl-policy .tl-title {
+  font-weight: 580;
+}
+
+.tl-row.tl-denied::before {
+  background: var(--denied-strong);
+  width: 9px;
+  height: 9px;
+  left: calc(var(--tl-gutter) + var(--tl-gap) / 2 - 4.5px);
+  top: 16px;
+}
+
+.tl-denied .tl-title {
+  color: var(--text);
+}
+
+.tl-row.tl-allowed::before {
+  background: var(--allowed);
+}
+
+.tl-row.tl-enter {
+  animation: tl-in 520ms var(--ease) both;
+}
+
+/* Staggered entry: the first batch cascades instead of mounting at once. */
+.tl-row:nth-child(1) { animation-delay: 0ms; }
+.tl-row:nth-child(2) { animation-delay: 34ms; }
+.tl-row:nth-child(3) { animation-delay: 68ms; }
+.tl-row:nth-child(4) { animation-delay: 102ms; }
+.tl-row:nth-child(5) { animation-delay: 136ms; }
+.tl-row:nth-child(6) { animation-delay: 170ms; }
+.tl-row:nth-child(7) { animation-delay: 204ms; }
+.tl-row:nth-child(8) { animation-delay: 238ms; }
+.tl-row:nth-child(9) { animation-delay: 272ms; }
+.tl-row:nth-child(10) { animation-delay: 306ms; }
+.tl-row:nth-child(11) { animation-delay: 340ms; }
+.tl-row:nth-child(12) { animation-delay: 374ms; }
+.tl-row:nth-child(13) { animation-delay: 408ms; }
+.tl-row:nth-child(14) { animation-delay: 442ms; }
+.tl-row:nth-child(15) { animation-delay: 476ms; }
+.tl-row:nth-child(n + 16) { animation-delay: 510ms; }
+
+@keyframes tl-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ============================================================================
+   POLICY DECISIONS — the one boxed element on the page
+   ========================================================================= */
 
 .policy-list {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 22px;
 }
 
-.pol-row {
-  padding: 16px 18px;
-  border-radius: 10px;
-  background: #0f131a;
-  border: 1px solid var(--border);
+.pol-row.tl-enter {
+  animation: tl-in 520ms var(--ease) both;
 }
 
 .pol-head {
   display: flex;
   align-items: center;
-  gap: 10px;
-  margin-bottom: 8px;
+  gap: 8px;
 }
 
 .pol-mark {
-  font-size: 20px;
-  font-weight: 800;
+  font-size: var(--t-13);
   line-height: 1;
 }
 
-.pol-verdict {
-  font-weight: 800;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-}
-
 .pol-title {
-  font-size: 18px;
-  font-weight: 700;
+  margin-top: 8px;
+  font-size: var(--t-15);
+  font-weight: 560;
+  line-height: 1.4;
+  letter-spacing: -0.008em;
+  color: var(--text);
+  text-wrap: pretty;
 }
 
 .pol-action {
-  margin-top: 6px;
-  font-size: 14px;
-  color: var(--muted);
-  white-space: pre-wrap;
+  margin-top: 9px;
+  font-size: var(--t-12);
+  line-height: 1.55;
+  color: var(--text-2);
   overflow-wrap: anywhere;
+  padding: 8px 10px;
+  border-radius: var(--r-sm);
+  background: var(--inset);
+  border: 1px solid var(--line);
 }
 
 .pol-reason {
-  margin-top: 8px;
-  font-size: 15px;
-  line-height: 1.4;
+  margin-top: 10px;
+  font-size: var(--t-13);
+  line-height: 1.6;
+  color: var(--text-2);
+  text-wrap: pretty;
 }
 
+/* ALLOWED: no box at all. A hairline, a green mark, and type. */
 .pol-allowed {
-  border-left: 5px solid var(--allowed);
+  padding-top: 16px;
+  border-top: 1px solid var(--line-strong);
 }
+
 .pol-allowed .pol-mark,
-.pol-allowed .pol-verdict { color: var(--allowed); }
+.pol-allowed .pol-verdict {
+  color: var(--allowed-text);
+}
 
-/* The denial is the frame the demo turns on — it has to read across a room. */
+/* DENIED: the only boxed, bordered, elevated element on the page. It is the
+   moment the demo exists for, and being the only box makes it unmissable
+   without raising its volume. */
 .pol-denied {
-  border: 3px solid var(--denied);
-  background: #2a0f0f;
-  box-shadow: 0 0 0 1px rgba(255, 56, 56, 0.35),
-    0 10px 36px rgba(255, 56, 56, 0.22);
+  padding: 18px 19px 20px;
+  border: 1px solid var(--denied-line);
+  border-radius: var(--r-lg);
+  background: var(--denied-wash);
+  box-shadow: var(--elev-denied);
 }
 
-.pol-denied .pol-mark { font-size: 30px; color: var(--denied); }
-.pol-denied .pol-verdict { font-size: 26px; color: var(--denied); }
-.pol-denied .pol-title { font-size: 22px; }
-.pol-denied .pol-reason {
-  font-size: 17px;
+.pol-denied .pol-mark,
+.pol-denied .pol-verdict {
+  color: var(--denied-text);
+}
+
+.pol-denied .pol-verdict {
+  letter-spacing: 0.2em;
+}
+
+.pol-denied .pol-title {
   font-weight: 600;
-  color: #ffc9c9;
+  font-size: var(--t-17);
+  letter-spacing: -0.014em;
 }
 
-/* Fired once per new denial by soundAlarm(), not on every poll. */
+.pol-denied .pol-action {
+  border-color: var(--denied-line);
+  background: var(--inset);
+}
+
+.pol-denied .pol-reason {
+  color: var(--denied-text);
+  font-weight: 480;
+}
+
+/* The demo key frame. app.js fires it once per new denial. */
 .denied-alarm {
-  animation: denied-shake 800ms cubic-bezier(0.36, 0.07, 0.19, 0.97) 1;
+  animation: denied-shake 900ms var(--ease) 1;
 }
 
 @keyframes denied-shake {
-  0%            { transform: translateX(0);    box-shadow: 0 0 0 0 rgba(255, 56, 56, 0.0); }
-  8%            { transform: translateX(-14px); box-shadow: 0 0 0 4px rgba(255, 56, 56, 0.55); }
-  18%           { transform: translateX(12px);  background: #2a0f0f; }
-  28%           { transform: translateX(-10px); box-shadow: 0 0 60px 8px rgba(255, 56, 56, 0.45); }
-  38%           { transform: translateX(8px); }
-  50%           { transform: translateX(-6px);  background: #3b1414; }
-  64%           { transform: translateX(4px); }
-  78%           { transform: translateX(-2px);  box-shadow: 0 0 0 3px rgba(255, 56, 56, 0.4); }
-  100%          { transform: translateX(0);    box-shadow: 0 0 0 0 rgba(255, 56, 56, 0.0); }
+  0% {
+    transform: translateX(0);
+  }
+  8% {
+    transform: translateX(-7px);
+  }
+  18% {
+    transform: translateX(6px);
+  }
+  28% {
+    transform: translateX(-5px);
+  }
+  38% {
+    transform: translateX(4px);
+  }
+  48% {
+    transform: translateX(-3px);
+  }
+  60% {
+    transform: translateX(2px);
+  }
+  74% {
+    transform: translateX(-1px);
+  }
+  100% {
+    transform: translateX(0);
+  }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .denied-alarm { animation: none; }
-  .tl-enter { animation-duration: 1ms; }
-}
-
-/* ---------- root cause ---------- */
+/* ============================================================================
+   ROOT CAUSE
+   ========================================================================= */
 
 .rc-title {
-  font-size: 28px;
-  font-weight: 800;
-  line-height: 1.25;
-  margin-bottom: 12px;
+  font-size: var(--t-15);
+  font-weight: 560;
+  line-height: 1.45;
+  letter-spacing: -0.008em;
+  color: var(--text);
+  text-wrap: pretty;
 }
 
 .rc-detail {
-  font-size: 18px;
-  line-height: 1.5;
-  color: #c6cde0;
-  white-space: pre-wrap;
+  margin-top: 8px;
+  font-size: var(--t-13);
+  line-height: 1.65;
+  color: var(--text-2);
+  text-wrap: pretty;
 }
 
 .rc-chip {
   display: inline-flex;
-  align-items: center;
-  gap: 10px;
+  flex-direction: column;
+  gap: 4px;
   margin-top: 16px;
-  padding: 8px 14px;
-  background: #221440;
-  border: 1px solid #3b2a66;
-  border-radius: 8px;
-}
-
-.rc-chip-label {
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: #a98bff;
+  padding: 9px 13px;
+  border-radius: var(--r-sm);
+  background: var(--inset);
+  border: 1px solid var(--line);
+  border-left: 2px solid var(--accent);
 }
 
 .rc-chip-sha {
-  font-size: 20px;
-  font-weight: 700;
-  color: #e6e9ef;
+  font-size: var(--t-13);
+  font-weight: 560;
+  color: var(--accent-text);
 }
 
-/* ---------- recovery ---------- */
+/* ============================================================================
+   RECOVERY — the payoff of the whole run, so it gets the size
+   ========================================================================= */
 
 .rec {
   display: flex;
@@ -440,51 +1495,97 @@ body {
 }
 
 .rec-row {
-  background: #0f131a;
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
 }
 
-.rec-label {
-  font-size: 14px;
-  font-weight: 700;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: var(--muted);
-  margin-bottom: 10px;
+.rec-row + .rec-row {
+  padding-top: 17px;
+  border-top: 1px solid var(--line);
 }
 
 .rec-pair {
   display: flex;
-  align-items: center;
-  gap: 16px;
+  align-items: baseline;
+  gap: 12px;
   flex-wrap: wrap;
-  font-variant-numeric: tabular-nums;
 }
 
 .rec-before {
-  font-size: 38px;
-  font-weight: 800;
-  color: #ff7a7a;
-  text-decoration: line-through;
-  text-decoration-color: rgba(255, 122, 122, 0.45);
-  white-space: nowrap;
-}
-
-.rec-arrow {
-  font-size: 30px;
+  font-family: "Geist Mono", ui-monospace, Menlo, Consolas, monospace;
+  font-size: var(--t-20);
+  font-weight: 460;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
   color: var(--muted);
 }
 
-.rec-after {
-  font-size: 44px;
-  font-weight: 800;
-  color: var(--allowed);
-  white-space: nowrap;
+.rec-arrow {
+  font-size: var(--t-15);
+  line-height: 1;
+  color: var(--accent-text);
 }
 
-/* ---------- report panel ---------- */
+.rec-after {
+  font-family: "Geist Mono", ui-monospace, Menlo, Consolas, monospace;
+  font-size: clamp(26px, 2.6vw, 34px);
+  font-weight: 540;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.035em;
+  line-height: 1;
+  color: var(--text);
+}
+
+/* Green is reserved for a recovery the agent actually confirmed, so the colour
+   only arrives with the RECOVERED outcome class. The report modal reuses .rec
+   without an outcome, and gets the neutral treatment. */
+.rec-ok .rec-after {
+  color: var(--allowed-text);
+}
+
+.rec-banner {
+  align-self: flex-start;
+  font-family: "Geist Mono", ui-monospace, Menlo, Consolas, monospace;
+  font-size: var(--t-11);
+  font-weight: 620;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  padding: 7px 11px;
+  border-radius: var(--r-sm);
+}
+
+.rec-failed .rec-banner {
+  background: var(--denied-wash);
+  border: 1px solid var(--denied-line);
+  color: var(--denied-text);
+}
+
+.rec-failed .rec-after {
+  color: var(--denied-text);
+}
+
+.rec-failed .rec-before {
+  color: var(--text-2);
+}
+
+.rec-unverified .rec-banner {
+  background: var(--warn-wash);
+  border: 1px solid var(--warn-line);
+  color: var(--warn-text);
+}
+
+.rec-unverified .rec-before {
+  color: var(--text-2);
+}
+
+.rec-after-unknown {
+  color: var(--warn-text);
+}
+
+/* ============================================================================
+   REPORT ACCESS
+   ========================================================================= */
 
 .rep {
   display: flex;
@@ -494,78 +1595,171 @@ body {
 }
 
 .rep-open {
-  min-width: 220px;
-  padding: 16px 28px;
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
   font: inherit;
-  font-size: 16px;
-  font-weight: 800;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: #0b0d10;
-  background: var(--allowed);
-  border: none;
-  border-radius: 8px;
+  font-size: var(--t-13);
+  font-weight: 580;
+  letter-spacing: 0.01em;
+  color: #fff;
+  background: var(--accent);
+  border: 1px solid var(--accent-deep);
+  border-radius: 999px;
+  padding: 8px 8px 8px 18px;
   cursor: pointer;
-  transition: filter 200ms ease;
+  box-shadow: var(--elev-1);
+  transition: transform 220ms var(--ease), background-color 220ms var(--ease),
+    box-shadow 220ms var(--ease);
 }
 
-.rep-open:hover { filter: brightness(0.86); }
+/* The arrow sits in its own circle flush with the inner padding rather than
+   naked next to the label. */
+.rep-open::after {
+  content: "↗";
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.16);
+  font-size: var(--t-13);
+  line-height: 1;
+  transition: transform 220ms var(--ease), background-color 220ms var(--ease);
+}
+
+.rep-open:hover {
+  background: var(--accent-bright);
+  box-shadow: var(--elev-2);
+}
+
+.rep-open:hover::after {
+  background: rgba(255, 255, 255, 0.26);
+  transform: translate(2px, -2px);
+}
+
+.rep-open:active {
+  transform: scale(0.98);
+}
 
 .rep-meta {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   flex-wrap: wrap;
 }
 
 .rep-id {
-  font-size: 18px;
-  font-weight: 700;
+  font-size: var(--t-12);
+  font-weight: 560;
+  color: var(--text-2);
 }
 
 .rep-status {
-  padding: 4px 12px;
-  border-radius: 999px;
-  background: #0f3b1f;
-  color: var(--allowed);
-  font-size: 13px;
-  font-weight: 800;
+  font-family: "Geist Mono", ui-monospace, Menlo, Consolas, monospace;
+  font-size: var(--t-11);
+  font-weight: 620;
   letter-spacing: 0.14em;
+  padding: 3px 8px;
+  border-radius: var(--r-xs);
+  border: 1px solid var(--line-strong);
+  background: var(--slate-wash);
+  color: var(--slate-text);
 }
 
 .rep-sha {
-  font-size: 13px;
+  font-size: var(--t-11);
   color: var(--muted);
+  overflow-wrap: anywhere;
 }
 
-/* ---------- report modal ---------- */
+/* Outcome treatments, shared by the panel chip and the modal fact. */
+.outcome-recovered {
+  color: var(--allowed-text);
+}
+
+.outcome-not_recovered {
+  color: var(--denied-text);
+}
+
+.outcome-unverified {
+  color: var(--warn-text);
+}
+
+.rep-status.outcome-recovered {
+  background: var(--allowed-wash);
+  border-color: var(--allowed-line);
+  color: var(--allowed-text);
+}
+
+.rep-status.outcome-not_recovered {
+  background: var(--denied-wash);
+  border-color: var(--denied-line);
+  color: var(--denied-text);
+}
+
+.rep-status.outcome-unverified {
+  background: var(--warn-wash);
+  border-color: var(--warn-line);
+  color: var(--warn-text);
+}
+
+.rep-error {
+  font-size: var(--t-13);
+  line-height: 1.6;
+  color: var(--denied-text);
+  padding: 12px 14px;
+  border-radius: var(--r-sm);
+  border: 1px solid var(--denied-line);
+  background: var(--denied-wash);
+}
+
+/* ============================================================================
+   REPORT MODAL
+   ----------------------------------------------------------------------------
+   An overlay, not part of the page plane, so it may be a card.
+   ========================================================================= */
 
 .modal-overlay {
   position: fixed;
   inset: 0;
-  z-index: 50;
+  z-index: var(--z-modal);
   display: none;
   align-items: flex-start;
   justify-content: center;
-  padding: 40px 20px;
-  background: rgba(5, 7, 10, 0.78);
+  padding: clamp(16px, 4vh, 54px) var(--gutter);
   overflow-y: auto;
+  background: var(--scrim-flat);
+  background: color-mix(in srgb, var(--bg) 76%, transparent);
+  backdrop-filter: blur(10px) saturate(130%);
+  -webkit-backdrop-filter: blur(10px) saturate(130%);
 }
 
-.modal-overlay.open { display: flex; }
+.modal-overlay.open {
+  display: flex;
+}
 
 .modal-card {
-  width: min(960px, 100%);
+  width: 100%;
+  max-width: 740px;
+  border-radius: var(--r-xl);
+  border: 1px solid var(--line-strong);
   background: var(--panel);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.6);
-  animation: modal-in 220ms ease both;
+  box-shadow: var(--elev-3);
+  animation: modal-in 320ms var(--ease) both;
+  overflow: hidden;
 }
 
 @keyframes modal-in {
-  from { opacity: 0; transform: translateY(-12px) scale(0.99); }
-  to   { opacity: 1; transform: translateY(0) scale(1); }
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
 .modal-head {
@@ -573,355 +1767,449 @@ body {
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  padding: 20px 24px;
-  border-bottom: 1px solid var(--border);
+  padding: 20px clamp(20px, 3vw, 32px);
+  border-bottom: 1px solid var(--line);
+  background: var(--inset);
 }
 
 .modal-title {
-  font-size: 22px;
-  font-weight: 800;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
+  font-size: var(--t-20);
+  font-weight: 580;
+  letter-spacing: -0.02em;
+  color: var(--text);
 }
 
 .modal-x {
   font: inherit;
-  font-size: 18px;
+  font-size: var(--t-13);
   line-height: 1;
-  padding: 8px 12px;
-  color: var(--text);
-  background: #1b2130;
-  border: 1px solid var(--border);
-  border-radius: 8px;
+  color: var(--muted);
+  background: transparent;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-sm);
+  width: 30px;
+  height: 30px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   cursor: pointer;
+  transition: color 180ms var(--ease), border-color 180ms var(--ease),
+    background-color 180ms var(--ease);
 }
 
-.modal-x:hover { background: #2b3444; }
+.modal-x:hover {
+  color: var(--text);
+  border-color: var(--line-strong);
+  background: var(--raised);
+}
 
-.modal-body { padding: 24px; }
+.modal-body {
+  padding: clamp(20px, 3vw, 32px);
+}
 
 .rep-facts {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
-  gap: 16px;
-  margin-bottom: 26px;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 18px 24px;
+  padding-bottom: 24px;
+  border-bottom: 1px solid var(--line);
 }
 
 .rep-fact {
-  background: #0f131a;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 12px 14px;
-}
-
-.rep-fact-label {
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--muted);
-  margin-bottom: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
 }
 
 .rep-fact-value {
-  font-size: 17px;
-  font-weight: 700;
+  font-family: "Geist Mono", ui-monospace, Menlo, Consolas, monospace;
+  font-size: var(--t-13);
+  font-weight: 540;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+  overflow-wrap: anywhere;
 }
 
-.rep-section { margin-bottom: 26px; }
+.rep-fact-value.outcome-recovered {
+  color: var(--allowed-text);
+}
+
+.rep-fact-value.outcome-not_recovered {
+  color: var(--denied-text);
+}
+
+.rep-fact-value.outcome-unverified {
+  color: var(--warn-text);
+}
+
+.rep-section {
+  padding-block: 24px;
+  border-bottom: 1px solid var(--line);
+}
+
+.rep-section:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
 
 .rep-section-title {
-  font-size: 13px;
-  font-weight: 800;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-  color: var(--muted);
-  padding-bottom: 8px;
   margin-bottom: 14px;
-  border-bottom: 1px solid var(--border);
 }
 
 .rep-list {
   margin: 0;
-  padding-left: 22px;
-  font-size: 17px;
-  line-height: 1.6;
+  padding-left: 20px;
+  font-size: var(--t-13);
+  line-height: 1.7;
+  color: var(--text-2);
+}
+
+.rep-list li::marker {
+  color: var(--accent-text);
 }
 
 .ev-row {
   display: grid;
-  grid-template-columns: 110px minmax(0, 1fr);
+  grid-template-columns: 92px minmax(0, 1fr);
   gap: 14px;
-  padding: 10px 0;
-  border-bottom: 1px solid #1b2028;
+  padding-block: 11px;
+  border-bottom: 1px solid var(--line);
 }
 
-.ev-row:last-child { border-bottom: none; }
+.ev-row:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
 
 .ev-source {
-  font-size: 12px;
-  font-weight: 800;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: #35d6e8;
   padding-top: 3px;
 }
 
 .ev-finding {
-  font-size: 16px;
-  line-height: 1.5;
+  font-size: var(--t-13);
+  line-height: 1.65;
+  color: var(--text-2);
+  text-wrap: pretty;
 }
 
 .rep-rootcause {
-  font-size: 20px;
-  font-weight: 600;
-  line-height: 1.45;
+  font-size: var(--t-15);
+  line-height: 1.6;
+  color: var(--text);
+  text-wrap: pretty;
 }
 
 .act-row {
   display: grid;
-  grid-template-columns: 120px minmax(0, 1fr);
-  gap: 16px;
-  align-items: start;
-  padding: 14px 16px;
-  margin-bottom: 12px;
-  border-radius: 8px;
-  background: #0f131a;
-  border: 1px solid var(--border);
+  grid-template-columns: 84px minmax(0, 1fr);
+  gap: 14px;
+  padding: 13px 0 13px 13px;
+  border-left: 2px solid var(--line-strong);
+}
+
+.act-row + .act-row {
+  margin-top: 10px;
 }
 
 .act-verdict {
-  font-size: 15px;
-  font-weight: 800;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
+  padding-top: 3px;
 }
 
-.act-allowed { border-left: 5px solid var(--allowed); }
-.act-allowed .act-verdict { color: var(--allowed); }
+.act-main {
+  min-width: 0;
+}
+
+.act-allowed {
+  border-left-color: var(--allowed);
+}
+
+.act-allowed .act-verdict {
+  color: var(--allowed-text);
+}
 
 .act-denied {
-  border-left: 5px solid var(--denied);
-  background: #1e1012;
+  border-left-color: var(--denied-strong);
+  background: var(--denied-wash);
+  border-radius: 0 var(--r-sm) var(--r-sm) 0;
 }
-.act-denied .act-verdict { color: var(--denied); }
+
+.act-denied .act-verdict {
+  color: var(--denied-text);
+}
 
 .act-action {
-  font-size: 16px;
+  font-size: var(--t-12);
+  line-height: 1.55;
+  color: var(--text);
   overflow-wrap: anywhere;
 }
 
 .act-reason {
   margin-top: 6px;
-  font-size: 15px;
-  color: var(--muted);
+  font-size: var(--t-13);
+  line-height: 1.6;
+  color: var(--text-2);
+  text-wrap: pretty;
 }
 
 .rep-exec {
-  font-size: 18px;
-  font-weight: 600;
-  line-height: 1.45;
+  font-size: var(--t-13);
+  line-height: 1.65;
+  color: var(--text-2);
+  text-wrap: pretty;
 }
 
 .rep-tests {
   display: flex;
-  gap: 16px;
+  gap: 10px;
   flex-wrap: wrap;
 }
 
 .test-pass,
 .test-fail {
-  padding: 10px 18px;
-  border-radius: 8px;
-  font-size: 20px;
-  font-weight: 800;
+  font-family: "Geist Mono", ui-monospace, Menlo, Consolas, monospace;
+  font-size: var(--t-12);
+  font-weight: 580;
+  letter-spacing: 0.04em;
+  padding: 6px 11px;
+  border-radius: var(--r-sm);
+  border: 1px solid transparent;
 }
 
-.test-pass { background: #0f3b1f; color: var(--allowed); }
-.test-fail { background: #232833; color: var(--muted); }
+.test-pass {
+  background: var(--allowed-wash);
+  border-color: var(--allowed-line);
+  color: var(--allowed-text);
+}
 
-/* The tamper-evident hash — computed by report_renderer.py, displayed here. */
+.test-fail {
+  background: var(--slate-wash);
+  border-color: var(--line-strong);
+  color: var(--slate-text);
+}
+
 .sha-block {
-  margin-top: 8px;
-  padding: 18px 20px;
-  background: #0d1016;
-  border: 1px solid #2b3444;
-  border-radius: 10px;
-}
-
-.sha-label {
-  font-size: 12px;
-  font-weight: 800;
-  letter-spacing: 0.2em;
-  text-transform: uppercase;
-  color: var(--muted);
-  margin-bottom: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  padding-top: 22px;
+  border-top: 1px solid var(--line);
 }
 
 .sha-value {
-  font-size: 17px;
-  font-weight: 700;
-  line-height: 1.5;
-  color: #d7defa;
+  font-size: var(--t-12);
+  line-height: 1.6;
+  color: var(--text-2);
   overflow-wrap: anywhere;
 }
 
-@media (max-width: 900px) {
-  .tl-row { grid-template-columns: 90px minmax(0, 1fr); }
-  .tl-dur { grid-column: 2; text-align: left; }
-  .ev-row,
-  .act-row { grid-template-columns: minmax(0, 1fr); gap: 6px; }
+/* ============================================================================
+   BOOT SEQUENCE
+   ----------------------------------------------------------------------------
+   Hidden unless the inline head script set data-boot, so a page without it (or
+   with ?boot=0, or where boot.js refuses the context) never flashes an
+   overlay. The dashboard underneath is already polling the whole time.
+   ========================================================================= */
+
+.boot {
+  display: none;
 }
 
-/* ---------- data source indicator ---------- */
-
-.topbar-right {
-  display: flex;
-  align-items: center;
-  gap: 20px;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-}
-
-.data-source {
+:root[data-boot] .boot {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-boot);
   display: flex;
   flex-direction: column;
-  align-items: flex-end;
-  gap: 6px;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(18px, 3vh, 34px);
+  background: var(--bg);
+  background-image: var(--page-wash);
+  cursor: pointer;
+  transition: opacity 460ms var(--ease);
 }
 
-.src-mode {
-  padding: 5px 14px;
-  border-radius: 6px;
-  font-size: 15px;
-  font-weight: 800;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
+.boot-stage {
+  position: relative;
+  width: min(62vmin, 460px);
+  height: min(62vmin, 460px);
+  /* transform-origin stays centred: the exit translates and scales the stage
+     toward the vitals ribbon's own position rather than cutting to it. */
+  transition: transform 620ms var(--ease), opacity 460ms var(--ease);
+  will-change: transform;
 }
 
-.src-feeds {
+.boot-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+.boot-mark {
   display: flex;
-  gap: 6px;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  text-align: center;
+  animation: rise-in 900ms var(--ease) 260ms both;
+  transition: opacity 300ms var(--ease);
 }
 
-.src-chip {
-  padding: 2px 8px;
-  border-radius: 999px;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.1em;
+.boot-wordmark {
+  font-size: var(--t-15);
+  font-weight: 640;
+  letter-spacing: 0.42em;
+  text-indent: 0.42em;
+  color: var(--text);
+}
+
+.boot-sub {
+  font-size: var(--t-11);
+  font-weight: 540;
+  letter-spacing: 0.2em;
   text-transform: uppercase;
-  white-space: nowrap;
-}
-
-/* live = reading state/, fixture = fell back, none = neither answered */
-.src-live {
-  background: #0f3b1f;
-  color: var(--allowed);
-  box-shadow: inset 0 0 0 1px rgba(74, 222, 128, 0.35);
-}
-
-.src-fixture {
-  background: #3b2a0f;
-  color: #fbbf24;
-  box-shadow: inset 0 0 0 1px rgba(251, 191, 36, 0.45);
-}
-
-.src-none {
-  background: #232833;
   color: var(--muted);
 }
 
-/* A verdict the contract does not define: shown, not silently dropped. */
-.verdict-unknown {
-  background: #232833;
-  color: var(--muted);
+/* Exit: the stage travels into the ribbon's slot while everything fades. One
+   continuous motion rather than a cut. */
+:root[data-boot] .boot.boot-out {
+  opacity: 0;
+  pointer-events: none;
 }
 
-.rep-error {
-  padding: 16px 18px;
-  border-radius: 8px;
-  background: #2a0f0f;
-  border: 1px solid var(--denied);
-  color: #ffc9c9;
-  font-size: 16px;
+.boot.boot-out .boot-stage {
+  transform: translate(var(--boot-dx, 0px), var(--boot-dy, -32vh))
+    scale(var(--boot-scale, 0.22));
+  opacity: 0;
 }
 
-@media (max-width: 900px) {
-  .topbar { flex-wrap: wrap; gap: 14px; }
-  .topbar-right { width: 100%; justify-content: space-between; }
+.boot.boot-out .boot-mark {
+  opacity: 0;
 }
 
-/* ---------- recovery outcomes (RECOVERED / NOT_RECOVERED / UNVERIFIED) ---------- */
-
-.rec-banner {
-  padding: 12px 18px;
-  border-radius: 8px;
-  font-size: 26px;
-  font-weight: 800;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
+/* A skip (pointer down, any key, Escape) cuts the travel short rather than
+   cancelling it, so the motion still reads as one gesture into the dashboard. */
+.boot.boot-skip,
+.boot.boot-skip .boot-stage,
+.boot.boot-skip .boot-mark {
+  transition-duration: 200ms;
 }
 
-/* A failed recovery is a real outcome, reported as loudly as a denial. */
-.rec-failed .rec-banner {
-  background: #2a0f0f;
-  color: var(--denied);
-  border: 3px solid var(--denied);
-  box-shadow: 0 0 0 1px rgba(255, 56, 56, 0.35),
-    0 10px 36px rgba(255, 56, 56, 0.18);
+/* Reduced motion: one still frame, then an opacity-only fade. Nothing moves. */
+:root[data-boot="still"] .boot-stage,
+:root[data-boot="still"] .boot-mark {
+  animation: none;
+  transition: opacity 260ms linear;
 }
 
-.rec-failed .rec-after {
-  color: var(--denied);
+:root[data-boot="still"] .boot.boot-out .boot-stage {
+  transform: none;
 }
 
-.rec-failed .rec-before {
-  color: #ff7a7a;
-  text-decoration: none;
+/* ============================================================================
+   RESPONSIVE
+   ========================================================================= */
+
+@media (max-width: 1023px) {
+  .case-rail {
+    border-top: 1px solid var(--line);
+    padding-top: 4px;
+  }
 }
 
-.rec-unverified .rec-banner {
-  background: #3b2a0f;
-  color: #fbbf24;
-  border: 2px solid rgba(251, 191, 36, 0.55);
+@media (max-width: 860px) {
+  :root {
+    --tl-gutter: 58px;
+    --tl-gap: 18px;
+  }
+
+  .band-instrument {
+    grid-template-columns: minmax(0, 1fr);
+    align-items: start;
+    min-height: 0;
+    padding-block: 22px 24px;
+  }
+
+  .band::after {
+    background: linear-gradient(
+      180deg,
+      var(--band-scrim-a) 0%,
+      var(--band-scrim-a) 56%,
+      var(--band-scrim-b) 100%
+    );
+  }
+
+  .tile-lead .tile-value {
+    font-size: var(--t-40);
+  }
+
+  .vitals-caption {
+    display: none;
+  }
+
+  .ev-row,
+  .act-row {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 6px;
+  }
 }
 
-.rec-unverified .rec-before {
-  color: #d9c08a;
-  text-decoration: none;
+@media (max-width: 620px) {
+  :root {
+    --tl-gutter: 46px;
+    --tl-gap: 14px;
+  }
+
+  .topbar {
+    align-items: flex-start;
+  }
+
+  .tiles {
+    gap: 16px;
+  }
+
+  .tile + .tile {
+    padding-left: 16px;
+  }
+
+  .tile-value {
+    font-size: var(--t-25);
+  }
+
+  .case-facts {
+    gap: 16px 22px;
+  }
 }
 
-.rec-after-unknown {
-  color: #fbbf24 !important;
-  font-variant-numeric: normal;
-}
+/* ============================================================================
+   REDUCED MOTION
+   ========================================================================= */
 
-/* ---------- final_status color coding ---------- */
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
 
-.outcome-recovered {
-  color: var(--allowed);
-}
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
 
-.outcome-not_recovered {
-  color: var(--denied);
-}
+  /* The boot overlay still needs to be able to disappear. */
+  :root[data-boot] .boot {
+    transition-duration: 220ms !important;
+  }
 
-.outcome-unverified {
-  color: #fbbf24;
-}
-
-.rep-status.outcome-recovered {
-  background: #0f3b1f;
-  color: var(--allowed);
-}
-
-.rep-status.outcome-not_recovered {
-  background: #3b1414;
-  color: var(--denied);
-}
-
-.rep-status.outcome-unverified {
-  background: #3b2a0f;
-  color: #fbbf24;
+  .pill::before {
+    animation: none !important;
+  }
 }
