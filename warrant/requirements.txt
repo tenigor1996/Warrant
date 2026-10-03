@@ -1,0 +1,7 @@
+# Warrant dependencies.
+# Intentionally empty for the skeleton — the standard library is enough so far.
+# Add pinned dependencies here when real LLM / OpenShell integration is built.
+#
+# Likely future candidates (not added yet):
+#   pytest        — test runner
+#   httpx         — HTTP client for the local LLM endpoint
